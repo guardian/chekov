@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/dev-tools/devcontainer-nginx/internal/nginx"
+	"github.com/dev-tools/chekov/internal/nginx"
 )
 
 var aliasHostnameLabelRE = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`)

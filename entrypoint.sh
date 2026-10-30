@@ -17,11 +17,11 @@ EFFECTIVE_TLS_KEY="$TLS_KEY"
 if [ ! -f "$TLS_CERT" ] || [ ! -f "$TLS_KEY" ]; then
   CERT_DIR="$(dirname "$TLS_CERT")"
   KEY_DIR="$(dirname "$TLS_KEY")"
-  DIAG_CERT="${CERT_DIR}/devcontainer-nginx.${BASE_DOMAIN}.crt"
-  DIAG_KEY="${KEY_DIR}/devcontainer-nginx.${BASE_DOMAIN}.key"
+  DIAG_CERT="${CERT_DIR}/chekov.${BASE_DOMAIN}.crt"
+  DIAG_KEY="${KEY_DIR}/chekov.${BASE_DOMAIN}.key"
 
   if [ -f "$DIAG_CERT" ] && [ -f "$DIAG_KEY" ]; then
-    echo "Using host-specific certificate pair for devcontainer-nginx.${BASE_DOMAIN}"
+    echo "Using host-specific certificate pair for chekov.${BASE_DOMAIN}"
     EFFECTIVE_TLS_CERT="$DIAG_CERT"
     EFFECTIVE_TLS_KEY="$DIAG_KEY"
   else
@@ -30,9 +30,9 @@ if [ ! -f "$TLS_CERT" ] || [ ! -f "$TLS_KEY" ]; then
       # This keeps the local TLS trust model simple: a single mkcert root CA,
       # plus one wildcard certificate per BASE_DOMAIN.
       if ! sh -c "touch ${CERT_DIR}/.write-test && rm -f ${CERT_DIR}/.write-test" >/dev/null 2>&1; then
-        mkdir -p /tmp/devcontainer-nginx-certs
-        EFFECTIVE_TLS_CERT="/tmp/devcontainer-nginx-certs/wildcard.crt"
-        EFFECTIVE_TLS_KEY="/tmp/devcontainer-nginx-certs/wildcard.key"
+        mkdir -p /tmp/chekov-certs
+        EFFECTIVE_TLS_CERT="/tmp/chekov-certs/wildcard.crt"
+        EFFECTIVE_TLS_KEY="/tmp/chekov-certs/wildcard.key"
       fi
 
       echo "Generating wildcard certificate for *.${BASE_DOMAIN} using mkcert"
@@ -92,7 +92,7 @@ server {
 EOF
 
 nginx -g "daemon off;" &
-/usr/local/bin/devcontainer-nginx \
+/usr/local/bin/chekov \
   --base-domain "${BASE_DOMAIN:-local.dev-gutools.co.uk}" \
   --tls-cert "$EFFECTIVE_TLS_CERT" \
   --tls-key "$EFFECTIVE_TLS_KEY" \

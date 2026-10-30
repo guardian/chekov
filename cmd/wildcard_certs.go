@@ -8,11 +8,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/dev-tools/devcontainer-nginx/internal/nginx"
+	"github.com/dev-tools/chekov/internal/nginx"
 )
 
 const (
-	defaultWritableCertDir = "/tmp/devcontainer-nginx-certs"
+	defaultWritableCertDir = "/tmp/chekov-certs"
 	localMkcertRootDir    = "/etc/nginx/mkcert"
 	localMkcertRootCert   = "/etc/nginx/mkcert/rootCA.pem"
 	localMkcertRootKey    = "/etc/nginx/mkcert/rootCA-key.pem"

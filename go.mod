@@ -1,4 +1,4 @@
-module github.com/dev-tools/devcontainer-nginx
+module github.com/dev-tools/chekov
 
 go 1.25.0
 

@@ -19,19 +19,19 @@ import (
 	"time"
 
 	"github.com/creack/pty"
-	"github.com/dev-tools/devcontainer-nginx/internal/discovery"
-	"github.com/dev-tools/devcontainer-nginx/internal/nginx"
+	"github.com/dev-tools/chekov/internal/discovery"
+	"github.com/dev-tools/chekov/internal/nginx"
 	"github.com/gorilla/websocket"
 )
 
 func main() {
-	logDir := "/var/log/devcontainer-nginx"
+	logDir := "/var/log/chekov"
 	if err := os.MkdirAll(logDir, 0o755); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to create log directory %s: %v\n", logDir, err)
 		os.Exit(1)
 	}
 
-	logFile, err := os.OpenFile(filepath.Join(logDir, "devcontainer-nginx.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	logFile, err := os.OpenFile(filepath.Join(logDir, "chekov.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to open log file: %v\n", err)
 		os.Exit(1)
@@ -49,7 +49,7 @@ func main() {
 	debounceMs := flag.Int("debounce", 500, "Event debounce period in milliseconds")
 	flag.Parse()
 
-	log.Println("Starting devcontainer-nginx discovery controller")
+	log.Println("Starting chekov discovery controller")
 
 	if os.Getenv("DOCKER_HOST") == "" && *dockerSocket != "" {
 		socket := *dockerSocket
@@ -177,7 +177,7 @@ func reconcileRoutes(
 
 	// Always expose a stable homepage hostname for nginx config inspection.
 	routes = append(routes, nginx.Route{
-		Hostname:   "devcontainer-nginx." + baseDomain,
+		Hostname:   "chekov." + baseDomain,
 		TargetHost: "127.0.0.1",
 		TargetPort: 18080,
 	})
@@ -202,7 +202,7 @@ func reconcileRoutes(
 
 func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath string, configGen *nginx.ConfigGenerator, homepageState *DiagnosticsState, tunnelManager *TunnelManager, aliasManager *AliasManager, baseDomain *string) {
 	mux := http.NewServeMux()
-	logPath := filepath.Join("/var/log/devcontainer-nginx", "devcontainer-nginx.log")
+	logPath := filepath.Join("/var/log/chekov", "chekov.log")
 	staticDir := resolveStaticDir()
 
 	writeConfig := func(w http.ResponseWriter, path string) {
@@ -704,11 +704,11 @@ func isProxyContainer(containerInfo *discovery.ContainerInfo, proxyID string) bo
 		return true
 	}
 
-	if name == "devcontainer-nginx" {
+	if name == "chekov" {
 		return true
 	}
 
-	if service, ok := containerInfo.Labels["com.docker.compose.service"]; ok && service == "devcontainer-nginx" {
+	if service, ok := containerInfo.Labels["com.docker.compose.service"]; ok && service == "chekov" {
 		return true
 	}
 
@@ -716,7 +716,7 @@ func isProxyContainer(containerInfo *discovery.ContainerInfo, proxyID string) bo
 }
 
 func (tunnelManager *TunnelManager) Logs(w http.ResponseWriter, r *http.Request) {
-	logPath := filepath.Join("/var/log/devcontainer-nginx", "devcontainer-nginx.log")
+	logPath := filepath.Join("/var/log/chekov", "chekov.log")
 	count := 40
 	if q := r.URL.Query().Get("n"); q != "" {
 		if parsed, err := strconv.Atoi(q); err == nil && parsed > 0 {
@@ -756,7 +756,7 @@ func (tunnelManager *TunnelManager) Logs(w http.ResponseWriter, r *http.Request)
 
 func renderLogsPage(logText string) string {
 	var b strings.Builder
-	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Devcontainer Nginx: Logs</title>")
+	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: Logs</title>")
 	b.WriteString(renderStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head><body>")
@@ -772,7 +772,7 @@ func renderLogsPage(logText string) string {
 func resolveStaticDir() string {
 	candidates := []string{
 		filepath.Join(".", "static"),
-		"/usr/share/devcontainer-nginx/static",
+		"/usr/share/chekov/static",
 	}
 	for _, candidate := range candidates {
 		if _, err := os.Stat(candidate); err == nil {

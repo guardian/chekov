@@ -11,8 +11,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/dev-tools/devcontainer-nginx/internal/discovery"
-	"github.com/dev-tools/devcontainer-nginx/internal/nginx"
+	"github.com/dev-tools/chekov/internal/discovery"
+	"github.com/dev-tools/chekov/internal/nginx"
 )
 
 type ContainerDiagnostic struct {
@@ -368,7 +368,7 @@ func parseDiagnosticsPortsAttributes(doc map[string]any) map[int]string {
 func loadHelpText(page string) string {
 	candidates := []string{
 		filepath.Join(".", "docs", "help", page+".txt"),
-		filepath.Join("/usr/share/devcontainer-nginx", "docs", "help", page+".txt"),
+		filepath.Join("/usr/share/chekov", "docs", "help", page+".txt"),
 	}
 	for _, candidate := range candidates {
 		content, err := os.ReadFile(candidate)
@@ -389,7 +389,7 @@ func renderHelpSection(page string) string {
 
 func renderHomepageHTML(rows []ContainerDiagnostic, revision uint64, endpointRows []PublishedEndpointRow) string {
 	var b strings.Builder
-	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Devcontainer Nginx: Home</title>")
+	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: Home</title>")
 	b.WriteString(renderStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head>")
@@ -453,7 +453,7 @@ func renderContainerCell(name, metadata string) string {
 }
 
 func renderPageHeader(title string) string {
-	return fmt.Sprintf(`<div class="page-header"><h1><a href="/" class="page-header-link">%s</a>: %s</h1><a href="/" class="site-icon-link" aria-label="Home"><img src="/static/icon.png" alt="Devcontainer Nginx home" width="32" height="32"></a></div>`, html.EscapeString("Devcontainer Nginx"), html.EscapeString(title))
+	return fmt.Sprintf(`<div class="page-header"><div class="page-header-copy"><h1><a href="/" class="page-header-link">%s</a>: %s</h1><p class="page-tagline">"Excuse me. We are looking for nuclear wessels."</p></div><a href="/" class="site-icon-link" aria-label="Home"><img src="/static/icon.png" alt="Chekov home" width="32" height="32"></a></div>`, html.EscapeString("Chekov"), html.EscapeString(title))
 }
 
 func renderStylesheetLink() string {
@@ -508,7 +508,7 @@ func renderFaviconLink() string {
 
 func renderContainersHTML(names []string) string {
 	var b strings.Builder
-	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Devcontainer Nginx: Containers</title>")
+	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: Containers</title>")
 	b.WriteString(renderStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head><body data-page=\"containers\">")
@@ -544,7 +544,7 @@ func isInternalHomepageRoute(hostname string) bool {
 	}
 	base := strings.TrimPrefix(hostname, "http://")
 	base = strings.TrimPrefix(base, "https://")
-	return strings.EqualFold(base, "devcontainer-nginx") || strings.HasPrefix(strings.ToLower(base), "devcontainer-nginx.")
+	return strings.EqualFold(base, "chekov") || strings.HasPrefix(strings.ToLower(base), "chekov.")
 }
 
 func extractHostnamePort(hostname string) int {
@@ -697,7 +697,7 @@ func renderOpenInNewTabIcon() string {
 
 func renderDebugPageHTML(rows []ContainerDiagnostic, revision uint64) string {
 	var b strings.Builder
-	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Devcontainer Nginx: Debug</title>")
+	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: Debug</title>")
 	b.WriteString(renderStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head>")

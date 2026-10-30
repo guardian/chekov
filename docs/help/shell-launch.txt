@@ -1,6 +1,6 @@
 Shell launch page
 
-This page opens a browser terminal attached to the devcontainer-nginx container itself.
+This page opens a browser terminal attached to the chekov container itself.
 
 How to use it:
 - Choose the AWS profile and region to use for any environment variables that need to be available in the local container shell.

@@ -1,4 +1,4 @@
-# devcontainer-nginx
+# chekov
 
 A Docker-based reverse proxy for local development. It inspects running Docker containers and Dev Containers, discovers their exposed or forwarded ports, and automatically generates HTTPS routes like `https://myapp.local.dev-gutools.co.uk`.
 
@@ -7,13 +7,13 @@ A Docker-based reverse proxy for local development. It inspects running Docker c
 ## TL;DR
 
 ```bash
-docker build -t devcontainer-nginx:local .
+docker build -t chekov:local .
 docker compose up -d --build
 ```
 
 For development, consider:
 ```
-docker compose up -d --build --force-recreate devcontainer-nginx
+docker compose up -d --build --force-recreate chekov
 ```
 which can be run repeatedly to rebuild the proxy container and reload its configuration in one step.
 
@@ -32,14 +32,14 @@ https://myapp.local.dev-gutools.co.uk
 The proxy also hosts a diagnostics homepage at:
 
 ```text
-https://devcontainer-nginx.local.dev-gutools.co.uk/
+https://chekov.local.dev-gutools.co.uk/
 ```
 
 See the [Quick Start Guide](./docs/QUICK-START.md) for the full setup flow.
 
 ## What this project does
 
-`devcontainer-nginx` runs as a single container with:
+`chekov` runs as a single container with:
 
 - an Nginx TLS terminator and reverse proxy
 - a Go discovery controller that watches Docker state
@@ -93,11 +93,11 @@ This is especially important when the devcontainer runs multiple services that n
 
 The proxy exposes a diagnostics homepage and a few useful endpoints:
 
-- `https://devcontainer-nginx.<base-domain>/`
-- `https://devcontainer-nginx.<base-domain>/nginx.conf`
-- `https://devcontainer-nginx.<base-domain>/generated.conf`
-- `https://devcontainer-nginx.<base-domain>/containers`
-- `https://devcontainer-nginx.<base-domain>/tunnels`
+- `https://chekov.<base-domain>/`
+- `https://chekov.<base-domain>/nginx.conf`
+- `https://chekov.<base-domain>/generated.conf`
+- `https://chekov.<base-domain>/containers`
+- `https://chekov.<base-domain>/tunnels`
 
 The `/tunnels` page is used to create and manage host tunnel entries when a backend ALB or internal target is required.
 

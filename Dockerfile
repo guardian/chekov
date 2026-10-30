@@ -1,4 +1,4 @@
-# Multi-stage Dockerfile for devcontainer-nginx
+# Multi-stage Dockerfile for chekov
 
 # Stage 1: Builder
 FROM golang:1.25-alpine AS builder
@@ -14,7 +14,7 @@ COPY cmd ./cmd
 COPY internal ./internal
 
 # Build binary
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o devcontainer-nginx ./cmd
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o chekov ./cmd
 
 # Stage 2: Runtime
 FROM mcr.microsoft.com/devcontainers/base:ubuntu26.04
@@ -36,22 +36,22 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy built binary
-COPY --from=builder /build/devcontainer-nginx /usr/local/bin/
+COPY --from=builder /build/chekov /usr/local/bin/
 
 # Copy nginx config
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
 COPY entrypoint.sh /entrypoint.sh
 COPY scripts/host-tunnel /usr/local/bin/host-tunnel
 COPY scripts/shell /usr/local/bin/shell
-COPY static /usr/share/devcontainer-nginx/static
-COPY docs/help /usr/share/devcontainer-nginx/docs/help
+COPY static /usr/share/chekov/static
+COPY docs/help /usr/share/chekov/docs/help
 
 # Create required directories
 RUN mkdir -p /etc/nginx/conf.d /etc/nginx/certs /var/log/nginx \
-    /var/cache/nginx /var/log/devcontainer-nginx \
-    /usr/share/devcontainer-nginx/docs/help \
-    && chown -R www-data:www-data /var/log/nginx /var/cache/nginx /var/log/devcontainer-nginx \
-    && chmod 755 /var/log/devcontainer-nginx \
+    /var/cache/nginx /var/log/chekov \
+    /usr/share/chekov/docs/help \
+    && chown -R www-data:www-data /var/log/nginx /var/cache/nginx /var/log/chekov \
+    && chmod 755 /var/log/chekov \
     && chmod +x /entrypoint.sh /usr/local/bin/host-tunnel /usr/local/bin/shell
 
 # Create baseline generated config

@@ -16,7 +16,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/dev-tools/devcontainer-nginx/internal/nginx"
+	"github.com/dev-tools/chekov/internal/nginx"
 )
 
 type AWSConfig struct {

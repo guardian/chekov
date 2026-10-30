@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	nginx "github.com/dev-tools/devcontainer-nginx/internal/nginx"
+	nginx "github.com/dev-tools/chekov/internal/nginx"
 )
 
 func TestExtractDiagnosticsPortMetadata(t *testing.T) {

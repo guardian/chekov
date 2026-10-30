@@ -1,16 +1,16 @@
-# Building devcontainer-nginx
+# Building chekov
 
 ## Local Go build
 
 ```bash
 go mod download
-go build -o devcontainer-nginx ./cmd
+go build -o chekov ./cmd
 ```
 
 ## Docker build
 
 ```bash
-docker build -t devcontainer-nginx:local .
+docker build -t chekov:local .
 ```
 
 ## Run locally with Docker Compose

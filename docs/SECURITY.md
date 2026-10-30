@@ -66,7 +66,7 @@ The project logs discovery and route updates but avoids logging private key mate
 ### Verify the socket is read-only
 
 ```bash
-docker inspect devcontainer-nginx | jq '.Mounts[] | select(.Source | contains("docker.sock"))'
+docker inspect chekov | jq '.Mounts[] | select(.Source | contains("docker.sock"))'
 ```
 
 Expected output includes `"RW": false`.
@@ -74,13 +74,13 @@ Expected output includes `"RW": false`.
 ### Review the generated certificate files
 
 ```bash
-docker exec devcontainer-nginx ls -la /etc/nginx/certs/
+docker exec chekov ls -la /etc/nginx/certs/
 ```
 
 ### Review logs safely
 
 ```bash
-docker logs devcontainer-nginx | grep -iE 'password|secret|token|key'
+docker logs chekov | grep -iE 'password|secret|token|key'
 ```
 
 This should normally return no results.

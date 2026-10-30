@@ -96,9 +96,9 @@ Currently informational and used for runtime logging configuration. The default 
 
 ```yaml
 services:
-  devcontainer-nginx:
+  chekov:
     build: .
-    image: devcontainer-nginx:local
+    image: chekov:local
     ports:
       - "80:80"
       - "443:443"
@@ -131,7 +131,7 @@ Example:
 
 ```bash
 127.0.0.1 myapp.local.dev-gutools.co.uk
-127.0.0.1 devcontainer-nginx.local.dev-gutools.co.uk
+127.0.0.1 chekov.local.dev-gutools.co.uk
 ```
 
 ## Homepage and debug endpoints
@@ -139,7 +139,7 @@ Example:
 The proxy exposes a diagnostics homepage at:
 
 ```text
-https://devcontainer-nginx.<base-domain>/
+https://chekov.<base-domain>/
 ```
 
 Available endpoints:
@@ -154,8 +154,8 @@ Available endpoints:
 Examples:
 
 ```bash
-curl -k https://devcontainer-nginx.local.dev-gutools.co.uk/containers
-curl -k https://devcontainer-nginx.local.dev-gutools.co.uk/generated.conf
+curl -k https://chekov.local.dev-gutools.co.uk/containers
+curl -k https://chekov.local.dev-gutools.co.uk/generated.conf
 ```
 
 ## Optional container metadata
@@ -224,7 +224,7 @@ The verification name is taken from the configured ALB/backend hostname so NGINX
 The container exposes a health endpoint at:
 
 ```text
-https://devcontainer-nginx.<base-domain>/health
+https://chekov.<base-domain>/health
 ```
 
 The app also provides a Docker health check that confirms Nginx is serving traffic.

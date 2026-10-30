@@ -420,7 +420,7 @@
 
     function render() {
       const data = new FormData(form);
-      const container = (data.get('container') || 'devcontainer-nginx').toString().trim() || 'devcontainer-nginx';
+      const container = (data.get('container') || 'chekov').toString().trim() || 'chekov';
       const user = data.get('user') || 'root';
       const command = (data.get('command') || 'shell').toString().trim();
       const profile = (data.get('profile') || '').toString().trim();

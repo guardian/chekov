@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/dev-tools/devcontainer-nginx/internal/discovery"
+	"github.com/dev-tools/chekov/internal/discovery"
 )
 
 func TestDiagnoseContainerAllowsPublishedPortFallbackWithoutSharedNetwork(t *testing.T) {

@@ -42,6 +42,21 @@ body {
   white-space: nowrap;
 }
 
+.page-header-copy {
+  min-width: 0;
+}
+
+.page-tagline {
+  margin: 6px 0 0;
+  font-size: 0.68rem;
+  line-height: 1.4;
+  color: #6b7280;
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .page-header-link {
   color: inherit;
   text-decoration: none;

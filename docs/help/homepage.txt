@@ -1,6 +1,6 @@
 Home page overview
 
-This page is the main status dashboard for devcontainer-nginx. It shows each discovered container or tunnel, whether it was routed successfully, why it was or was not included, and the hostnames generated for it.
+This page is the main status dashboard for chekov. It shows each discovered container or tunnel, whether it was routed successfully, why it was or was not included, and the hostnames generated for it.
 
 How to use it:
 - Review the Process column to see container names and metadata.

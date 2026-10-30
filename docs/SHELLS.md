@@ -14,7 +14,7 @@ The local shell is intended for interactive work inside the running proxy contai
 Access it from the homepage action list or directly from:
 
 ```text
-https://devcontainer-nginx.<base-domain>/shell-launch
+https://chekov.<base-domain>/shell-launch
 ```
 
 This page opens a browser terminal that is attached to the local container environment. It is best used for quick debugging, shell access, and runtime inspection when you are already operating inside the stack.
@@ -26,7 +26,7 @@ The remote shell is intended for AWS-hosted bastion access. It resolves the corr
 Access it from the homepage action list or directly from:
 
 ```text
-https://devcontainer-nginx.<base-domain>/remote-shell-launch
+https://chekov.<base-domain>/remote-shell-launch
 ```
 
 This page opens a separate remote terminal session for a bastion-host workflow. It keeps the local container shell and remote AWS session clearly distinct so the user experience is easier to reason about.

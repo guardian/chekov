@@ -9,7 +9,7 @@ import (
 
 func renderAWSConfigPage(cfg AWSConfig) string {
 	var b strings.Builder
-	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Devcontainer Nginx: AWS Config</title>")
+	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: AWS Config</title>")
 	b.WriteString(renderStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head><body data-page=\"aws-config\">")
@@ -30,7 +30,7 @@ func renderAWSConfigPage(cfg AWSConfig) string {
 
 func renderTunnelPage(cfg AWSConfig, tunnels []TunnelEntry, mappedHostnames []string) string {
 	var b strings.Builder
-	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Devcontainer Nginx: Tunnels</title>")
+	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: Tunnels</title>")
 	b.WriteString(renderStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head><body data-page=\"tunnel-page\">")
@@ -90,7 +90,7 @@ func renderTunnelPage(cfg AWSConfig, tunnels []TunnelEntry, mappedHostnames []st
 
 func renderAliasPage(mappedHostnames []string, aliases []AliasEntry) string {
 	var b strings.Builder
-	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Devcontainer Nginx: Aliases</title>")
+	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: Aliases</title>")
 	b.WriteString(renderStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head><body data-page=\"alias-page\">")
@@ -135,7 +135,7 @@ func renderAliasPage(mappedHostnames []string, aliases []AliasEntry) string {
 
 func renderCommandGeneratorPage() string {
 	var b strings.Builder
-	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Devcontainer Nginx: Command Generator</title>")
+	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: Command Generator</title>")
 	b.WriteString(renderStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head><body data-page=\"command-generator\">")
@@ -143,7 +143,7 @@ func renderCommandGeneratorPage() string {
 	b.WriteString("<p class=\"muted\">Generate copy-ready Docker exec commands for AWS SSM sessions.</p>")
 	b.WriteString("<p><a href=\"/\">Home</a> | <a href=\"/aws-config\">AWS config</a> | <a href=\"/tunnels\">Tunnels</a></p>")
 	b.WriteString("<form id=\"command-form\">")
-	b.WriteString("<div class=\"row\"><div><label>Container</label><input name=\"container\" value=\"devcontainer-nginx\" /></div>")
+	b.WriteString("<div class=\"row\"><div><label>Container</label><input name=\"container\" value=\"chekov\" /></div>")
 	b.WriteString("<div><label>Run as</label><select name=\"user\"><option value=\"root\" selected>root</option><option value=\"current\">current user</option></select></div>")
 	b.WriteString("<div><label>Command</label><select name=\"command\"><option value=\"shell\" selected>shell</option><option value=\"bash\">bash</option><option value=\"host-tunnel\">host-tunnel</option></select></div>")
 	b.WriteString("<div><label>Profile</label>" + renderProfileSelect("profile", "") + "</div>")
@@ -174,7 +174,7 @@ func renderRemoteShellPage(profile, region, stack, stage, app string) string {
 	stage = html.EscapeString(stage)
 	app = html.EscapeString(app)
 	var b strings.Builder
-	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Devcontainer Nginx: Remote Bastion Shell</title>")
+	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: Remote Bastion Shell</title>")
 	b.WriteString("<link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css\" />")
 	b.WriteString(renderStylesheetLink())
 	b.WriteString(renderFaviconLink())
@@ -213,7 +213,7 @@ func renderRemoteShellPage(profile, region, stack, stage, app string) string {
 
 func renderRemoteShellLaunchPage() string {
 	var b strings.Builder
-	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Devcontainer Nginx: Open Remote Bastion Shell</title>")
+	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: Open Remote Bastion Shell</title>")
 	b.WriteString(renderStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head><body data-page=\"remote-shell-launch\">")
@@ -238,7 +238,7 @@ func renderShellPage(profile, region string) string {
 	profile = html.EscapeString(profile)
 	region = html.EscapeString(region)
 	var b strings.Builder
-	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Devcontainer Nginx: Local Container Shell</title>")
+	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: Local Container Shell</title>")
 	b.WriteString("<link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css\" />")
 	b.WriteString(renderStylesheetLink())
 	b.WriteString(renderFaviconLink())
@@ -382,12 +382,12 @@ func renderRegionSelect(name, value string) string {
 
 func renderShellLaunchPage() string {
 	var b strings.Builder
-	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Devcontainer Nginx: Open Shell</title>")
+	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: Open Shell</title>")
 	b.WriteString(renderStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head><body data-page=\"shell-launch\">")
 	b.WriteString(renderPageHeader("Open Shell"))
-	b.WriteString("<p class=\"muted\">Open a shell inside the devcontainer-nginx container with AWS environment variables pre-set.</p>")
+	b.WriteString("<p class=\"muted\">Open a shell inside the chekov container with AWS environment variables pre-set.</p>")
 	b.WriteString("<form id=\"shell-launch-form\" action=\"/shell\" method=\"get\" target=\"_blank\">")
 	b.WriteString("<div class=\"row\"><div><label>Profile</label>" + renderProfileSelect("profile", "") + "</div>")
 	b.WriteString("<div><label>Region</label>" + renderRegionSelect("region", "eu-west-1") + "</div></div>")

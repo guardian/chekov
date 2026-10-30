@@ -13,7 +13,7 @@
                        │
                        ▼
           ┌──────────────────────────┐
-          │ devcontainer-nginx       │
+          │ chekov       │
           │ - Nginx TLS terminator   │
           │ - Go discovery service  │
           │ - route generator        │
@@ -41,7 +41,7 @@ The project runs as one container that contains:
 ## Components
 
 ```text
-devcontainer-nginx/
+chekov/
 ├── cmd/
 │   ├── main.go                     # startup, reconciliation, homepage server
 │   ├── homepage.go                 # diagnostics and HTML rendering

@@ -11,7 +11,7 @@
 ## Step 1: Build the image
 
 ```bash
-docker build -t devcontainer-nginx:local .
+docker build -t chekov:local .
 ```
 
 ## Step 2: Start the proxy container
@@ -49,7 +49,7 @@ Supported patterns include:
 Visit:
 
 ```text
-https://devcontainer-nginx.local.dev-gutools.co.uk/
+https://chekov.local.dev-gutools.co.uk/
 ```
 
 This page shows:
@@ -122,7 +122,7 @@ https://app.local.dev-gutools.co.uk
 1. Check the proxy logs:
 
 ```bash
-docker logs devcontainer-nginx | tail -n 100
+docker logs chekov | tail -n 100
 ```
 
 2. Inspect the container metadata:
@@ -134,21 +134,21 @@ docker inspect myapp | jq '.Config.Labels, .Config.ExposedPorts, .NetworkSetting
 3. Verify the generated config page:
 
 ```bash
-curl -k https://devcontainer-nginx.local.dev-gutools.co.uk/generated.conf
+curl -k https://chekov.local.dev-gutools.co.uk/generated.conf
 ```
 
 ### TLS or certificate errors
 
 ```bash
-docker exec devcontainer-nginx ls -la /etc/nginx/certs/
+docker exec chekov ls -la /etc/nginx/certs/
 curl -vk --resolve myapp.local.dev-gutools.co.uk:443:127.0.0.1 https://myapp.local.dev-gutools.co.uk
 ```
 
 ### Connectivity issues
 
 ```bash
-docker exec devcontainer-nginx curl -v http://myapp:3000
-docker inspect devcontainer-nginx | jq '.NetworkSettings.Networks'
+docker exec chekov curl -v http://myapp:3000
+docker inspect chekov | jq '.NetworkSettings.Networks'
 ```
 
 ## Tunnel workflow
@@ -156,7 +156,7 @@ docker inspect devcontainer-nginx | jq '.NetworkSettings.Networks'
 The built-in tunnels page is available at:
 
 ```text
-https://devcontainer-nginx.local.dev-gutools.co.uk/tunnels
+https://chekov.local.dev-gutools.co.uk/tunnels
 ```
 
 It supports creating local tunnel entries that reverse-proxy to an ALB or other upstream target. For HTTPS backends, you can toggle whether nginx verifies the upstream certificate before proxying.

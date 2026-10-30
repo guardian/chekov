@@ -1,6 +1,6 @@
 Command generator page
 
-This page builds copy-ready shell commands for working with the local devcontainer-nginx environment and the AWS tunnel helper tooling.
+This page builds copy-ready shell commands for working with the local chekov environment and the AWS tunnel helper tooling.
 
 How to use it:
 - Set the container name, user, profile, stack, stage, app, region, and any host-tunnel parameters.

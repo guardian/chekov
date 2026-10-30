@@ -9,7 +9,7 @@ How to use it:
 - Use Delete on any alias entry to remove it when it is no longer needed.
 
 Requirements:
-- The source hostname must already be mapped and active in the current devcontainer-nginx configuration.
+- The source hostname must already be mapped and active in the current chekov configuration.
 - The alias must be a valid hostname and must not already be in use.
 - The generated nginx config must reload successfully before the alias becomes available.
 

@@ -1,6 +1,6 @@
 Logs page
 
-This page displays the recent devcontainer-nginx log output, which is useful when diagnosing route discovery, configuration errors, or tunnel startup problems.
+This page displays the recent chekov log output, which is useful when diagnosing route discovery, configuration errors, or tunnel startup problems.
 
 How to use it:
 - Newest log lines are at the top.
