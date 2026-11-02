@@ -1,23 +1,19 @@
-# chekov
+# Chekov
 
-A Docker-based reverse proxy for local development. It inspects running Docker containers and Dev Containers, discovers their exposed or forwarded ports, and automatically generates HTTPS routes like `https://myapp.local.dev-gutools.co.uk`.
+Chekov acts like a transporter for local services: discover the container, pick the route, beam it onto a friendly HTTPS hostname.
 
-![screenshot.png](docs/screenshot.png)
+It watches running containers, discovers their ports, and turns them into friendly hostnames like `https://myapp.local.dev-gutools.co.uk`.
 
-## TL;DR
+It will also create aliases, tunnels, and shells for containers that are not directly exposed to the internet.
+
+## Quick start example
 
 ```bash
 docker build -t chekov:local .
 docker compose up -d --build
 ```
 
-For development, consider:
-```
-docker compose up -d --build --force-recreate chekov
-```
-which can be run repeatedly to rebuild the proxy container and reload its configuration in one step.
-
-Then start any app container, for example:
+Then start a container:
 
 ```bash
 docker run -d --name myapp -p 3000:3000 your-app:latest
@@ -29,78 +25,140 @@ Open:
 https://myapp.local.dev-gutools.co.uk
 ```
 
-The proxy also hosts a diagnostics homepage at:
+The homepage is here:
 
 ```text
 https://chekov.local.dev-gutools.co.uk/
 ```
 
-See the [Quick Start Guide](./docs/QUICK-START.md) for the full setup flow.
+## How routes are created
 
-## What this project does
+This is the fall-through order Chekov uses when it decides how to map a container:
 
-`chekov` runs as a single container with:
+### 1) Port label route
 
-- an Nginx TLS terminator and reverse proxy
-- a Go discovery controller that watches Docker state
-- automatic route generation for discovered containers and Dev Containers
-- a homepage showing active routes and config details
-- optional tunnel management for AWS ALB / SSM-style host tunnels
+If a container exposes one app port, Chekov can route it automatically from the port metadata or a label.
 
-It is designed to work with the default Docker and Dev Container metadata already present on the machine. In most cases, no app-level labels or per-project configuration are required.
+```bash
+docker run -d --name api \
+  --label devcontainer.application.port=3000 \
+  -p 3000:3000 \
+  your-api:latest
+```
 
-When a devcontainer needs to reach services on the host machine, Docker Desktop/Linux containers often need explicit host aliases such as:
+Result:
+
+```text
+https://api.local.dev-gutools.co.uk
+```
+
+For Dev Containers, a labeled port can be explicit:
+
+```json
+{
+  "forwardPorts": [3000, 8080],
+  "portsAttributes": {
+    "3000": { "label": "backend" },
+    "8080": { "label": "frontend" }
+  }
+}
+```
+
+This gives separate routes like:
+
+```text
+https://backend.local.dev-gutools.co.uk
+https://frontend.local.dev-gutools.co.uk
+```
+
+### 2) Inferred from container name and port
+
+When a container has multiple ports, the name plus chosen app port gives a stable route.
+
+```bash
+docker run -d --name myapp \
+  -p 3000:3000 \
+  -p 9000:9000 \
+  your-app:latest
+```
+
+If the app port is known, Chekov can map:
+
+```text
+https://myapp.local.dev-gutools.co.uk -> :3000
+```
+
+### 3) Inferred from container name
+
+If the container has a sensible name and a single app port, Chekov infers the hostname directly.
+
+```bash
+docker run -d --name payments -p 8080:8080 your-app:latest
+```
+
+Result:
+
+```text
+https://payments.local.dev-gutools.co.uk
+```
+
+### 4) Tunnelled via a bastion / ALB
+
+If the app is behind an ALB or bastion-host tunnel, use the tunnel page or config entry and point the route at the tunnel endpoint.
+
+```text
+https://chekov.local.dev-gutools.co.uk/tunnels
+```
+
+This is useful for AWS-backed or remote targets that are not exposed to the internet.
+
+## Aliases
+
+Once a route exists, you can add secondary hostnames without changing the original target.
+
+```text
+source: https://api.local.dev-gutools.co.uk
+alias:  https://api-public.local.dev-gutools.co.uk
+```
+
+This is handy for customer-facing names, temporary URLs, or legacy aliases.
+
+## Access from inside the container
+
+If a Dev Container needs to call the host by the generated route name, add Docker host aliases in `runArgs`:
 
 ```json
 "runArgs": [
   "--add-host=host.docker.internal:host-gateway",
-  "--add-host=janus.local.dev-gutools.co.uk:host-gateway"
+  "--add-host=myapp.local.dev-gutools.co.uk:host-gateway"
 ]
 ```
 
-This is especially important when the devcontainer runs multiple services that need to talk to each other through full HTTPS endpoints on the host machine, rather than only through loopback or local container networking. In those cases, the services inside the devcontainer may need to resolve the host machine by name (for example `janus.local.dev-gutools.co.uk`) or by the standard Docker host alias (`host.docker.internal`) while preserving TLS hostname validation and local-domain routing. The `host-gateway` mapping gives the container a stable route back to the machine running Docker while preserving the local domain used by this proxy.
+That makes the container resolve the host machine and the Chekov domain correctly when it needs to call a local HTTPS endpoint from inside the container.
 
-## Main features
+## Shell and tunnel options
 
-- Zero-config discovery of Docker and Dev Container apps
-- Automatic hostname generation from container names or labels
-- HTTPS by default for generated app routes
-- Smart port detection for exposed and forwarded ports
-- Safe config generation with `nginx -t` validation before reload
-- Homepage and debug endpoints for route inspection
-- Optional tunnel UI for creating ALB-backed local tunnels
-- HTTPS upstream verification toggle for background fetches
+The homepage exposes:
 
-## Documentation
+- Tunnel UI for bastion/ALB-backed routes
+- Bastion shell for AWS/remote access
+- Local shell for container-level debugging
 
-- [Quick Start Guide](./docs/QUICK-START.md) — install, run, and access apps
-- [Shell Access Guide](./docs/SHELLS.md) — browser shell usage and the 10-minute timeout
-- [Configuration Reference](./docs/CONFIGURATION.md) — environment variables and runtime settings
-- [Architecture](./docs/ARCHITECTURE.md) — component and request flow details
-- [Building](./docs/BUILDING.md) — local and Docker builds
-- [Security](./docs/SECURITY.md) — TLS, Docker socket, and operational guidance
-- [Requirements](./docs/REQUIREMENTS.md) — design constraints and goals
+```text
+https://chekov.local.dev-gutools.co.uk/tunnels
+https://chekov.local.dev-gutools.co.uk/remote-shell-launch
+https://chekov.local.dev-gutools.co.uk/shell-launch
+```
 
-## Example workflow
+The local shell is especially useful because it keeps credentials inside the container instead of spreading them onto the host machine.
 
-1. Start the container with Docker Compose.
-2. Run a local app container or open a Dev Container.
-3. Let the proxy discover the app and generate a hostname.
-4. Visit the generated host or the homepage to inspect routes.
-5. Optionally use the built-in tunnel UI for ALB-backed tunnel setup.
+## In one sentence
 
-## Homepage and admin endpoints
+Chekov turns Docker and Dev Container metadata into a clean local HTTPS routing layer, with optional aliases, tunnels, and shell access for day-to-day development.
 
-The proxy exposes a diagnostics homepage and a few useful endpoints:
+## Docs
 
-- `https://chekov.<base-domain>/`
-- `https://chekov.<base-domain>/nginx.conf`
-- `https://chekov.<base-domain>/generated.conf`
-- `https://chekov.<base-domain>/containers`
-- `https://chekov.<base-domain>/tunnels`
-
-The `/tunnels` page is used to create and manage host tunnel entries when a backend ALB or internal target is required.
-
-## License
-
-MIT
+- Quick start: `docs/QUICK-START.md`
+- Shell access: `docs/SHELLS.md`
+- Configuration: `docs/CONFIGURATION.md`
+- Architecture: `docs/ARCHITECTURE.md`
