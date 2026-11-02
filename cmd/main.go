@@ -303,7 +303,7 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 		}
 		rows := homepageState.Snapshot()
 		rows = append(rows, tunnelDiagnostics(tunnelManager, *baseDomain)...)
-		endpointRows := publishedEndpointRows(configGen.CurrentRoutes(), rows, tunnelManager)
+		endpointRows := publishedEndpointRows(configGen.CurrentRoutes(), rows, tunnelManager, aliasManager)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = w.Write([]byte(renderHomepageHTML(rows, homepageState.Revision(), endpointRows)))
 	})
@@ -1138,4 +1138,3 @@ func (tunnelManager *TunnelManager) RegisterShellRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/remote-shell-launch", tunnelManager.RemoteShellLaunch)
 	mux.HandleFunc("/remote-shell/ws", tunnelManager.RemoteShellWS)
 }
-

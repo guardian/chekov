@@ -402,8 +402,16 @@ func renderHomepageHTML(rows []ContainerDiagnostic, revision uint64, endpointRow
 	} else {
 		for _, row := range endpointRows {
 			host := html.EscapeString(row.Hostname)
-			provider := html.EscapeString(row.Provider)
-			status := html.EscapeString(row.Status)
+			service := html.EscapeString(row.Description)
+			if service == "" {
+				if row.Provider != "" && row.Status != "" {
+					service = html.EscapeString(row.Provider + " — " + row.Status)
+				} else if row.Provider != "" {
+					service = html.EscapeString(row.Provider)
+				} else {
+					service = html.EscapeString(row.Status)
+				}
+			}
 			b.WriteString("<tr><td><a href=\"https://")
 			b.WriteString(host)
 			b.WriteString("\" target=\"_blank\" rel=\"noopener noreferrer\">")
@@ -411,9 +419,7 @@ func renderHomepageHTML(rows []ContainerDiagnostic, revision uint64, endpointRow
 			b.WriteString(" ")
 			b.WriteString(renderOpenInNewTabIcon())
 			b.WriteString("</a></td><td>")
-			b.WriteString(provider)
-			b.WriteString(" — ")
-			b.WriteString(status)
+			b.WriteString(service)
 			b.WriteString("</td></tr>")
 		}
 	}
@@ -532,9 +538,101 @@ func renderContainersHTML(names []string) string {
 }
 
 type PublishedEndpointRow struct {
-	Hostname string
-	Provider string
-	Status   string
+	Hostname    string
+	Provider    string
+	Status      string
+	Description string
+}
+
+func endpointSourceKind(route nginx.Route, diagnostics []ContainerDiagnostic) string {
+	for _, row := range diagnostics {
+		if strings.TrimPrefix(row.Name, "/") != strings.TrimPrefix(route.ContainerName, "/") {
+			continue
+		}
+		if strings.Contains(row.Metadata, "devcontainer.metadata") || strings.Contains(row.Metadata, "portsAttributes=") || strings.Contains(row.Metadata, "forwardPorts=") || strings.Contains(row.Metadata, "devcontainer.") {
+			return "devcontainer"
+		}
+		return "container"
+	}
+	return "container"
+}
+
+func endpointTunnelDescription(route nginx.Route, tunnelManager *TunnelManager) string {
+	if tunnelManager == nil {
+		return ""
+	}
+	for _, entry := range tunnelManager.Snapshot() {
+		name := strings.TrimSpace(entry.Alias)
+		if name == "" {
+			name = strings.TrimSpace(entry.Host)
+		}
+		if name == "" {
+			name = entry.Name
+		}
+		if strings.EqualFold(qualifyHostname(name, tunnelManager.baseDomain), route.Hostname) || strings.EqualFold(name, route.Hostname) {
+			service := strings.TrimSpace(entry.Alb)
+			if service == "" {
+				service = strings.TrimSpace(entry.Name)
+			}
+			if service == "" {
+				service = strings.TrimSpace(entry.Alias)
+			}
+			bastion := strings.TrimSpace(entry.Stack)
+			if bastion == "" {
+				bastion = strings.TrimSpace(entry.Stage)
+			}
+			if strings.TrimSpace(entry.Stage) != "" && strings.TrimSpace(entry.App) != "" {
+				bastion = strings.TrimSpace(entry.Stack) + "/" + strings.TrimSpace(entry.Stage) + "/" + strings.TrimSpace(entry.App)
+			}
+			if bastion == "" {
+				bastion = "bastion"
+			}
+			if service == "" {
+				return fmt.Sprintf("Forward to tunnel via bastion %s", bastion)
+			}
+			return fmt.Sprintf("Forward to tunnel to service %s via bastion %s", service, bastion)
+		}
+	}
+	return ""
+}
+
+func endpointDescription(route nginx.Route, provider, status string, diagnostics []ContainerDiagnostic, tunnelManager *TunnelManager, aliasManager *AliasManager) string {
+	if aliasManager != nil {
+		for _, entry := range aliasManager.Snapshot() {
+			if strings.EqualFold(entry.AliasHostname, route.Hostname) {
+				return fmt.Sprintf("Alias for endpoint %s", entry.SourceHostname)
+			}
+		}
+	}
+	if tunnelManager != nil {
+		if desc := endpointTunnelDescription(route, tunnelManager); desc != "" {
+			return desc
+		}
+	}
+
+	kind := endpointSourceKind(route, diagnostics)
+	port := route.TargetPort
+	if port <= 0 {
+		if hostPort := extractHostnamePort(route.Hostname); hostPort > 0 {
+			port = hostPort
+		}
+	}
+	if kind == "devcontainer" {
+		if strings.TrimSpace(provider) == "" {
+			provider = route.ContainerName
+		}
+		if port > 0 {
+			return fmt.Sprintf("Forward to labelled port %d on devcontainer %s", port, provider)
+		}
+		return fmt.Sprintf("Forward to labelled port on devcontainer %s", provider)
+	}
+	if strings.TrimSpace(provider) == "" {
+		provider = route.ContainerName
+	}
+	if port > 0 {
+		return fmt.Sprintf("Forward to port %d on container %s", port, provider)
+	}
+	return fmt.Sprintf("Forward to container %s", provider)
 }
 
 func isInternalHomepageRoute(hostname string) bool {
@@ -608,7 +706,7 @@ func formatHomepageStatus(route nginx.Route, provider, status string) string {
 	}
 }
 
-func publishedEndpointRows(routes []nginx.Route, diagnostics []ContainerDiagnostic, tunnelManager *TunnelManager) []PublishedEndpointRow {
+func publishedEndpointRows(routes []nginx.Route, diagnostics []ContainerDiagnostic, tunnelManager *TunnelManager, aliasManager *AliasManager) []PublishedEndpointRow {
 	if len(routes) == 0 {
 		return nil
 	}
@@ -683,9 +781,10 @@ func publishedEndpointRows(routes []nginx.Route, diagnostics []ContainerDiagnost
 		status = formatHomepageStatus(route, provider, status)
 
 		out = append(out, PublishedEndpointRow{
-			Hostname: hostname,
-			Provider: provider,
-			Status:   status,
+			Hostname:    hostname,
+			Provider:    provider,
+			Status:      status,
+			Description: endpointDescription(route, provider, status, diagnostics, tunnelManager, aliasManager),
 		})
 	}
 	return out

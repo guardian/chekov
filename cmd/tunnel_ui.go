@@ -96,7 +96,6 @@ func renderAliasPage(mappedHostnames []string, aliases []AliasEntry) string {
 	b.WriteString("</head><body data-page=\"alias-page\">")
 	b.WriteString(renderPageHeader("Aliases"))
 	b.WriteString("<p class=\"muted\">Create a secondary hostname that points at an existing mapped route.</p>")
-	b.WriteString("<p><a href=\"/\">Home</a> | <a href=\"/tunnels\">Tunnels</a></p>")
 	b.WriteString("<form id=\"alias-form\" method=\"post\" action=\"/api/aliases\">")
 	b.WriteString("<div class=\"row\"><div><label>Mapped domain</label><select name=\"sourceHostname\" id=\"alias-source\">")
 	if len(mappedHostnames) == 0 {
