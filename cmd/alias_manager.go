@@ -214,3 +214,24 @@ func routeHostnames(routes []nginx.Route) []string {
 	sort.Strings(out)
 	return out
 }
+
+func filterAliasHostnameRoutes(routes []nginx.Route, aliases ...string) []nginx.Route {
+	if len(routes) == 0 || len(aliases) == 0 {
+		return routes
+	}
+	blocked := make(map[string]bool, len(aliases))
+	for _, alias := range aliases {
+		alias = strings.TrimSpace(strings.ToLower(alias))
+		if alias != "" {
+			blocked[alias] = true
+		}
+	}
+	out := make([]nginx.Route, 0, len(routes))
+	for _, route := range routes {
+		if blocked[strings.TrimSpace(strings.ToLower(route.Hostname))] {
+			continue
+		}
+		out = append(out, route)
+	}
+	return out
+}

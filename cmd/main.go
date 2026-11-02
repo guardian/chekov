@@ -283,6 +283,38 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 		}
 	})
 
+	mux.HandleFunc("/api/aliases/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		alias := strings.TrimPrefix(r.URL.Path, "/api/aliases/")
+		if alias == "" {
+			http.Error(w, "missing alias hostname", http.StatusBadRequest)
+			return
+		}
+		if !aliasManager.RemoveAlias(alias) {
+			http.Error(w, "alias not found", http.StatusNotFound)
+			return
+		}
+		baseRoutes := configGen.CurrentRoutes()
+		baseRoutes = filterAliasHostnameRoutes(baseRoutes, alias)
+		merged := aliasManager.MergeRoutes(baseRoutes)
+		if err := configGen.ApplyRoutes(merged); err != nil {
+			http.Error(w, "failed to remove alias routes: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if !configGen.ValidateConfig() {
+			http.Error(w, "generated config is invalid", http.StatusInternalServerError)
+			return
+		}
+		if !configGen.ReloadNginx() {
+			http.Error(w, "failed to reload nginx after alias removal", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+
 	mux.HandleFunc("/aliases", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -620,13 +652,22 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 	})
 
 	staticFileServer := http.FileServer(http.Dir(staticDir))
-	mux.Handle("/static/", http.StripPrefix("/static/", staticFileServer))
+	staticHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+		staticFileServer.ServeHTTP(w, r)
+	})
+	mux.Handle("/static/", http.StripPrefix("/static/", staticHandler))
 	mux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		w.Header().Set("Content-Type", "image/x-icon")
+		w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
 		http.ServeFile(w, r, filepath.Join(staticDir, "favicon.ico"))
 	})
 	if tunnelManager != nil {

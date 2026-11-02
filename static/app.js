@@ -530,6 +530,29 @@
     });
   }
 
+  function setupAliasPage() {
+    document.querySelectorAll('[data-delete-alias]').forEach((button) => {
+      button.addEventListener('click', async function () {
+        const alias = this.getAttribute('data-delete-alias');
+        if (!alias) {
+          return;
+        }
+
+        const response = await fetch('/api/aliases/' + encodeURIComponent(alias), {
+          method: 'DELETE',
+        });
+
+        if (!response.ok) {
+          alert((await response.text()) || 'failed');
+          return;
+        }
+
+        location.reload();
+      });
+    });
+  }
+
+
   document.addEventListener('DOMContentLoaded', () => {
     setupRegionControls();
 
@@ -553,6 +576,7 @@
 
     if (page === 'alias-page') {
       setupAliasForm();
+      setupAliasPage();
     }
   });
 })();
