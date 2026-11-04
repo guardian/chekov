@@ -65,6 +65,18 @@ Defaults:
 
 If these files are absent at startup, the entrypoint tries to generate a wildcard certificate for `*.${BASE_DOMAIN}` using the local mkcert CA if it is available. Otherwise it falls back to a self-signed cert.
 
+When an alias is added, the controller checks for a certificate covering its
+wildcard scope and creates one with mkcert if the certificate or key is missing.
+For example, `yyy.zzz.local.dev-gutools.co.uk` uses a certificate with SANs
+`*.zzz.local.dev-gutools.co.uk` and `zzz.local.dev-gutools.co.uk`, rather than
+inheriting the source hostname's certificate. Existing scope certificates are
+reused, and reconciliation preserves the alias's certificate binding. These
+certificates are stored in `DEVCONTAINER_NGINX_CERT_DIR` (default
+`/tmp/chekov-certs`) and require the mkcert CA files at
+`/etc/nginx/mkcert/rootCA.pem` and `/etc/nginx/mkcert/rootCA-key.pem`.
+Certificate generation failures are logged as warnings; the route retains its
+previous certificate, which may not cover the alias.
+
 ### LOCAL_CA_CERT and LOCAL_CA_KEY
 
 Used by the entrypoint when generating a local wildcard cert with `mkcert`.

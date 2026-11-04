@@ -117,6 +117,10 @@ https://app.local.dev-gutools.co.uk
 
 ## Troubleshooting
 
+The homepage checks for route and status changes every two seconds while visible,
+and immediately when you return to its tab or navigate back to it. It reloads only
+if the data has changed, including alias and tunnel changes.
+
 ### The app is not appearing
 
 1. Check the proxy logs:

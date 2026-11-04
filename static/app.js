@@ -6,9 +6,6 @@
     }
 
     const labels = document.querySelectorAll('.container-label');
-    if (!labels.length) {
-      return;
-    }
 
     labels.forEach((label) => {
       const toggle = (event) => {
@@ -45,27 +42,42 @@
       });
     }
 
-    const revision = Number(body.dataset.currentRevision || '0');
-    if (!Number.isFinite(revision)) {
+    const revision = body.dataset.currentRevision;
+    if (!revision || !/^\d+$/.test(revision)) {
       return;
     }
 
+    let checking = false;
+    let reloading = false;
     async function checkForUpdate() {
+      if (document.visibilityState === 'hidden' || checking || reloading) {
+        return;
+      }
+      checking = true;
       try {
         const response = await fetch('/homepage/version', { cache: 'no-store' });
         if (!response.ok) {
-          return;
+          throw new Error(`Homepage update check failed: HTTP ${response.status}`);
         }
 
-        const next = Number((await response.text()).trim());
-        if (Number.isFinite(next) && next > revision) {
+        const next = (await response.text()).trim();
+        if (!/^\d+$/.test(next)) {
+          throw new Error('Homepage update check returned an invalid revision');
+        }
+        if (next !== revision) {
+          reloading = true;
           location.reload();
         }
-      } catch (_error) {
-        // Ignore polling failures and keep the page available.
+      } catch (error) {
+        console.warn('Unable to check for homepage updates', error);
+      } finally {
+        checking = false;
       }
     }
 
+    window.addEventListener('focus', checkForUpdate);
+    window.addEventListener('pageshow', checkForUpdate);
+    document.addEventListener('visibilitychange', checkForUpdate);
     setInterval(checkForUpdate, 2000);
   }
 

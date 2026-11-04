@@ -13,9 +13,9 @@ import (
 
 const (
 	defaultWritableCertDir = "/tmp/chekov-certs"
-	localMkcertRootDir    = "/etc/nginx/mkcert"
-	localMkcertRootCert   = "/etc/nginx/mkcert/rootCA.pem"
-	localMkcertRootKey    = "/etc/nginx/mkcert/rootCA-key.pem"
+	localMkcertRootDir     = "/etc/nginx/mkcert"
+	localMkcertRootCert    = "/etc/nginx/mkcert/rootCA.pem"
+	localMkcertRootKey     = "/etc/nginx/mkcert/rootCA-key.pem"
 )
 
 func defaultWildcardCertDir() string {
@@ -34,7 +34,10 @@ func ensureRouteWildcardCerts(routes []nginx.Route, baseDomain string) []nginx.R
 		return routes
 	}
 
-	certDir := defaultWildcardCertDir()
+	return ensureRouteWildcardCertsInDir(routes, baseDomain, defaultWildcardCertDir(), mintWildcardCertificate)
+}
+
+func ensureRouteWildcardCertsInDir(routes []nginx.Route, baseDomain, certDir string, mint func(string, string, string) (bool, error)) []nginx.Route {
 	log.Printf("Wildcard-cert policy: baseDomain=%q certDir=%q", baseDomain, certDir)
 
 	for i := range routes {
@@ -55,7 +58,7 @@ func ensureRouteWildcardCerts(routes []nginx.Route, baseDomain string) []nginx.R
 		}
 
 		if !fileExists(certPath) || !fileExists(keyPath) {
-			if minted, err := mintWildcardCertificate(scope, certPath, keyPath); err != nil {
+			if minted, err := mint(scope, certPath, keyPath); err != nil {
 				log.Printf("WARNING: failed to mint wildcard cert for %q (scope=%q cert=%s key=%s): %v", hostname, scope, certPath, keyPath, err)
 				continue
 			} else if minted {

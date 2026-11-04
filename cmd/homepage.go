@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"hash/fnv"
 	"html"
 	"log"
 	"os"
@@ -55,6 +56,12 @@ func (ds *DiagnosticsState) Revision() uint64 {
 	ds.mu.RLock()
 	defer ds.mu.RUnlock()
 	return ds.revision
+}
+
+func homepageRevision(rows []ContainerDiagnostic, endpoints []PublishedEndpointRow, routes []nginx.Route) uint64 {
+	hash := fnv.New64a()
+	fmt.Fprintf(hash, "%#v\n%#v\n%#v", rows, endpoints, routes)
+	return hash.Sum64()
 }
 
 func debugLogf(format string, args ...interface{}) {

@@ -168,10 +168,10 @@ func reconcileRoutes(
 		routes = append(routes, tunnelManager.NginxRoutes(baseDomain)...)
 	}
 
-	routes = ensureRouteWildcardCerts(routes, baseDomain)
 	if aliasManager != nil {
 		routes = aliasManager.MergeRoutes(routes)
 	}
+	routes = ensureRouteWildcardCerts(routes, baseDomain)
 
 	homepageState.Set(homepageRows)
 
@@ -263,6 +263,7 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 				return
 			}
 			merged := aliasManager.MergeRoutes(configGen.CurrentRoutes())
+			merged = ensureRouteWildcardCerts(merged, *baseDomain)
 			if err := configGen.ApplyRoutes(merged); err != nil {
 				http.Error(w, "failed to add alias routes: "+err.Error(), http.StatusInternalServerError)
 				return
@@ -300,6 +301,7 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 		baseRoutes := configGen.CurrentRoutes()
 		baseRoutes = filterAliasHostnameRoutes(baseRoutes, alias)
 		merged := aliasManager.MergeRoutes(baseRoutes)
+		merged = ensureRouteWildcardCerts(merged, *baseDomain)
 		if err := configGen.ApplyRoutes(merged); err != nil {
 			http.Error(w, "failed to remove alias routes: "+err.Error(), http.StatusInternalServerError)
 			return
@@ -321,8 +323,17 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(renderAliasPage(routeHostnames(configGen.CurrentRoutes()), aliasManager.Snapshot())))
+		routes := filterAliasHostnameRoutes(configGen.CurrentRoutes(), "chekov."+*baseDomain)
+		_, _ = w.Write([]byte(renderAliasPage(routeHostnames(routes), aliasManager.Snapshot())))
 	})
+
+	homepageSnapshot := func() ([]ContainerDiagnostic, []PublishedEndpointRow, uint64) {
+		rows := homepageState.Snapshot()
+		rows = append(rows, tunnelDiagnostics(tunnelManager, *baseDomain)...)
+		routes := configGen.CurrentRoutes()
+		endpoints := publishedEndpointRows(routes, rows, tunnelManager, aliasManager)
+		return rows, endpoints, homepageRevision(rows, endpoints, routes)
+	}
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -333,11 +344,10 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 			http.NotFound(w, r)
 			return
 		}
-		rows := homepageState.Snapshot()
-		rows = append(rows, tunnelDiagnostics(tunnelManager, *baseDomain)...)
-		endpointRows := publishedEndpointRows(configGen.CurrentRoutes(), rows, tunnelManager, aliasManager)
+		rows, endpointRows, revision := homepageSnapshot()
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(renderHomepageHTML(rows, homepageState.Revision(), endpointRows)))
+		w.Header().Set("Cache-Control", "no-store")
+		_, _ = w.Write([]byte(renderHomepageHTML(rows, revision, endpointRows)))
 	})
 
 	mux.HandleFunc("/homepage/version", func(w http.ResponseWriter, r *http.Request) {
@@ -346,7 +356,9 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 			return
 		}
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		_, _ = fmt.Fprintf(w, "%d", homepageState.Revision())
+		w.Header().Set("Cache-Control", "no-store")
+		_, _, revision := homepageSnapshot()
+		_, _ = fmt.Fprintf(w, "%d", revision)
 	})
 
 	mux.HandleFunc("/containers", func(w http.ResponseWriter, r *http.Request) {
