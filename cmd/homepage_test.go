@@ -91,7 +91,7 @@ func TestRenderHomepageHTMLUsesSharedStaticAssets(t *testing.T) {
 		Hostname: "frontend.local.dev",
 		Provider: "frontend",
 		Status:   "routed",
-	}})
+	}}, "")
 
 	if !strings.Contains(html, "data-page=\"homepage\"") {
 		t.Fatalf("homepage HTML missing page marker")

@@ -17,8 +17,9 @@ type ConfigGenerator struct {
 	certPath   string
 	keyPath    string
 
-	mu     sync.RWMutex
-	routes []Route
+	mu           sync.RWMutex
+	routes       []Route
+	routingError string
 }
 
 // NewConfigGenerator creates a new config generator.
@@ -52,7 +53,17 @@ func (cg *ConfigGenerator) ApplyRoutes(routes []Route) error {
 	copy(cg.routes, routes)
 
 	content := cg.renderConfig(routes)
-	return cg.writeConfig(content)
+	err := cg.writeConfig(content)
+	if err != nil {
+		cg.routingError = "Failed to write routing configuration: " + err.Error()
+	}
+	return err
+}
+
+func (cg *ConfigGenerator) RoutingError() string {
+	cg.mu.RLock()
+	defer cg.mu.RUnlock()
+	return cg.routingError
 }
 
 // writeConfig writes configuration to file atomically.
@@ -380,6 +391,9 @@ func (cg *ConfigGenerator) ValidateConfig() bool {
 
 	if err != nil {
 		log.Printf("ERROR: Nginx configuration invalid:\n%s\n", string(output))
+		cg.mu.Lock()
+		cg.routingError = fmt.Sprintf("Nginx rejected the routing configuration: %v\n%s", err, strings.TrimSpace(string(output)))
+		cg.mu.Unlock()
 		return false
 	}
 
@@ -394,9 +408,15 @@ func (cg *ConfigGenerator) ReloadNginx() bool {
 
 	if err != nil {
 		log.Printf("ERROR: Failed to reload Nginx:\n%s\n", string(output))
+		cg.mu.Lock()
+		cg.routingError = fmt.Sprintf("Failed to reload Nginx: %v\n%s", err, strings.TrimSpace(string(output)))
+		cg.mu.Unlock()
 		return false
 	}
 
+	cg.mu.Lock()
+	cg.routingError = ""
+	cg.mu.Unlock()
 	log.Println("Nginx reloaded successfully")
 	return true
 }

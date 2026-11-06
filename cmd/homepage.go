@@ -396,7 +396,7 @@ func renderHelpSection(page string) string {
 	return fmt.Sprintf("<div class=\"help-block\"><h3>How this page works</h3><pre>%s</pre></div>", html.EscapeString(text))
 }
 
-func renderHomepageHTML(rows []ContainerDiagnostic, revision uint64, endpointRows []PublishedEndpointRow) string {
+func renderHomepageHTML(rows []ContainerDiagnostic, revision uint64, endpointRows []PublishedEndpointRow, routingError string) string {
 	var b strings.Builder
 	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: Home</title>")
 	b.WriteString(renderStylesheetLink())
@@ -404,10 +404,15 @@ func renderHomepageHTML(rows []ContainerDiagnostic, revision uint64, endpointRow
 	b.WriteString("</head>")
 	b.WriteString(fmt.Sprintf("<body data-page=\"homepage\" data-current-revision=\"%d\">", revision))
 	b.WriteString(renderPageHeader("Home"))
-	b.WriteString("<table><thead><tr><th>Endpoint</th><th>Service</th></tr></thead><tbody>")
+	b.WriteString("<p id=\"routing-error\" role=\"alert\"")
+	if routingError == "" {
+		b.WriteString(" hidden")
+	}
+	b.WriteString(">" + html.EscapeString(routingError) + "</p>")
+	b.WriteString("<table><thead><tr><th>Endpoint</th><th>Service</th><th>Connectivity</th></tr></thead><tbody>")
 
 	if len(endpointRows) == 0 {
-		b.WriteString("<tr><td colspan=\"2\">No published endpoints are currently configured.</td></tr>")
+		b.WriteString("<tr><td colspan=\"3\">No published endpoints are currently configured.</td></tr>")
 	} else {
 		for _, row := range endpointRows {
 			host := html.EscapeString(row.Hostname)
@@ -429,7 +434,15 @@ func renderHomepageHTML(rows []ContainerDiagnostic, revision uint64, endpointRow
 			b.WriteString(renderOpenInNewTabIcon())
 			b.WriteString("</a></td><td>")
 			b.WriteString(service)
-			b.WriteString("</td></tr>")
+			result := row.Connectivity
+			if result.Summary == "" {
+				result.Summary = "Not checked"
+			}
+			detail := result.Detail
+			if !result.CheckedAt.IsZero() {
+				detail += " Last checked: " + result.CheckedAt.UTC().Format("2006-01-02 15:04:05 UTC")
+			}
+			b.WriteString("</td><td data-connectivity-host=\"" + host + "\" title=\"" + html.EscapeString(detail) + "\">" + html.EscapeString(result.Summary) + "</td></tr>")
 		}
 	}
 	b.WriteString("</tbody></table>")
@@ -547,10 +560,11 @@ func renderContainersHTML(names []string) string {
 }
 
 type PublishedEndpointRow struct {
-	Hostname    string
-	Provider    string
-	Status      string
-	Description string
+	Hostname     string
+	Provider     string
+	Status       string
+	Description  string
+	Connectivity ConnectivityResult
 }
 
 func endpointSourceKind(route nginx.Route, diagnostics []ContainerDiagnostic) string {
@@ -840,21 +854,6 @@ func renderDebugPageHTML(rows []ContainerDiagnostic, revision uint64) string {
 	}
 
 	b.WriteString("</tbody></table>")
-	b.WriteString("<h2>Actions</h2><ul>")
-	b.WriteString("<li><a href=\"/aws-config\">Configure AWS credentials in this container</a></li>")
-	b.WriteString("<li><a href=\"/tunnels\">Start or stop tunnels to services</a></li>")
-	b.WriteString("<li><a href=\"/shell-launch\">Open a shell in a new tab</a></li>")
-	b.WriteString("<li><a href=\"/remote-shell-launch\">Open a bastion shell in a new tab</a></li>")
-	b.WriteString("</ul>")
-	b.WriteString(renderHelpSection("homepage"))
-	b.WriteString("<h2>Debugging Container Services</h2><ul>")
-	b.WriteString("<li><a href=\"/logs\">View logs</a></li>")
-	b.WriteString("<li><a href=\"/shell-command-generator\">Generate shell commands for bastion host access</a></li>")
-	b.WriteString("<li><a href=\"/nginx.conf\">Base nginx.conf</a></li>")
-	b.WriteString("<li><a href=\"/generated.conf\">Generated nginx config</a></li>")
-	b.WriteString("<li><a href=\"/nginx/config\">Full nginx config</a></li>")
-	b.WriteString("<li><a href=\"/containers\">Container config</a></li>")
-	b.WriteString("</ul>")
 	b.WriteString("<script src=\"/static/app.js\"></script>")
 	b.WriteString("</body></html>")
 	return b.String()

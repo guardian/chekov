@@ -3,10 +3,13 @@ Home page overview
 This page is the main status dashboard for chekov. It shows each discovered container or tunnel, whether it was routed successfully, why it was or was not included, and the hostnames generated for it.
 
 How to use it:
-- Review the Process column to see container names and metadata.
-- Use Status to tell whether a container is routed, partial, or skipped.
-- Check Reason for the underlying cause when a route is missing.
-- Follow the generated HTTPS/HTTP links in Routes to open the app directly.
+- Follow Endpoint links to open a service; Service describes its source.
+- Connectivity shows background checks from inside Chekov to each backend, refreshed every 15 seconds with a three-second timeout.
+- Responding (including HTTP 401, 404 or 500) means the backend answered, not that the application is healthy.
+- Hover over Connectivity for error details and the last-check time. Aliases with the same backend and TLS policy share checks.
+- Stopped tunnels are not probed or started automatically. Enter credentials and start them explicitly.
+- Routing configuration errors appear separately above the table. Connectivity checks do not test the browser-to-Nginx connection.
+- Use the Debug page for discovery metadata and skipped routes.
 
 Common setup requirements:
 - The app container and devcontainer must be running.
@@ -37,4 +40,3 @@ When a devcontainer needs to reach the host machine, add runArgs such as:
 ```
 
 If a route is missing, inspect the container metadata and verify the port is being forwarded or published correctly.
-

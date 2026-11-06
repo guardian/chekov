@@ -42,6 +42,45 @@
       });
     }
 
+    let connectivityPending = false;
+    async function updateConnectivity() {
+      if (document.visibilityState === 'hidden' || connectivityPending) {
+        return;
+      }
+      connectivityPending = true;
+      try {
+        const response = await fetch('/homepage/connectivity', { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error(`Connectivity update failed: HTTP ${response.status}`);
+        }
+        const data = await response.json();
+        document.querySelectorAll('[data-connectivity-host]').forEach((cell) => {
+          const result = data.results[cell.dataset.connectivityHost];
+          cell.textContent = result ? result.summary : 'Not checked';
+          cell.title = result ? result.detail : '';
+          if (result && result.checkedAt && !result.checkedAt.startsWith('0001-')) {
+            cell.title += ` Last checked: ${new Date(result.checkedAt).toLocaleString()}`;
+          }
+        });
+        const banner = document.getElementById('routing-error');
+        if (banner) {
+          banner.textContent = data.routingError;
+          banner.hidden = !data.routingError;
+        }
+      } catch (error) {
+        console.warn('Unable to update connectivity', error);
+        document.querySelectorAll('[data-connectivity-host]').forEach((cell) => {
+          cell.textContent = 'Status unavailable';
+          cell.title = error.message;
+        });
+      } finally {
+        connectivityPending = false;
+      }
+    }
+    updateConnectivity();
+    window.addEventListener('focus', updateConnectivity);
+    setInterval(updateConnectivity, 5000);
+
     const revision = body.dataset.currentRevision;
     if (!revision || !/^\d+$/.test(revision)) {
       return;

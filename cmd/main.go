@@ -202,6 +202,7 @@ func reconcileRoutes(
 
 func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath string, configGen *nginx.ConfigGenerator, homepageState *DiagnosticsState, tunnelManager *TunnelManager, aliasManager *AliasManager, baseDomain *string) {
 	mux := http.NewServeMux()
+	connectivity := newConnectivityMonitor(ctx, configGen.CurrentRoutes, tunnelManager)
 	logPath := filepath.Join("/var/log/chekov", "chekov.log")
 	staticDir := resolveStaticDir()
 
@@ -348,7 +349,26 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 		rows, endpointRows, revision := homepageSnapshot()
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
-		_, _ = w.Write([]byte(renderHomepageHTML(rows, revision, endpointRows)))
+		results := connectivity.snapshot(configGen.CurrentRoutes(), tunnelManager)
+		for i := range endpointRows {
+			endpointRows[i].Connectivity = results[endpointRows[i].Hostname]
+		}
+		_, _ = w.Write([]byte(renderHomepageHTML(rows, revision, endpointRows, configGen.RoutingError())))
+	})
+
+	mux.HandleFunc("/homepage/connectivity", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-store")
+		if err := json.NewEncoder(w).Encode(struct {
+			Results      map[string]ConnectivityResult `json:"results"`
+			RoutingError string                        `json:"routingError"`
+		}{connectivity.snapshot(configGen.CurrentRoutes(), tunnelManager), configGen.RoutingError()}); err != nil {
+			log.Printf("Failed to write connectivity response: %v", err)
+		}
 	})
 
 	mux.HandleFunc("/homepage/version", func(w http.ResponseWriter, r *http.Request) {

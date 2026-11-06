@@ -31,6 +31,12 @@ The homepage is here:
 https://chekov.local.dev-gutools.co.uk/
 ```
 
+Its Connectivity column checks backends from inside Chekov in the background,
+showing HTTP responses, connection/TLS failures, and inactive tunnels. Hover for
+details and the last-check time. These checks indicate reachability, not application
+health or browser-to-proxy connectivity. Routing configuration failures appear
+separately above the endpoint table.
+
 ## How routes are created
 
 This is the fall-through order Chekov uses when it decides how to map a container:
