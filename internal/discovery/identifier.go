@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -148,6 +149,44 @@ func (i *Identifier) ExtractProjectName(
 	}
 
 	return ""
+}
+
+// SuggestProjectNames offers metadata-derived aliases without changing route naming.
+func (i *Identifier) SuggestProjectNames(labels map[string]string) []string {
+	names := []string{}
+	seen := map[string]bool{}
+	add := func(raw string) {
+		if name := i.SanitizeHostname(raw); name != "" && !seen[name] {
+			seen[name] = true
+			names = append(names, name)
+		}
+	}
+	for _, key := range devcontainerMetadataKeys(labels) {
+		if strings.HasSuffix(key, "devcontainer.presentable.name") {
+			add(labels[key])
+			continue
+		}
+		docs, err := ParseDevcontainerMetadata(labels[key])
+		if err != nil {
+			log.Printf("WARNING: Unable to read alias suggestions from %s: %v", key, err)
+			continue
+		}
+		for _, doc := range docs {
+			if name, ok := doc["name"].(string); ok {
+				add(name)
+			}
+		}
+	}
+	for _, key := range []string{"devcontainer.local_folder", "com.intellij.devcontainer.sources.path"} {
+		if folder := strings.TrimSpace(labels[key]); folder != "" {
+			base := filepath.Base(folder)
+			if base != "." && base != string(filepath.Separator) {
+				add(base)
+			}
+		}
+	}
+	sort.Strings(names)
+	return names
 }
 
 // SanitizeHostname sanitizes a string to be a valid DNS hostname label.

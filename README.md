@@ -123,6 +123,10 @@ alias:  https://api-public.local.dev-gutools.co.uk
 
 This is handy for customer-facing names, temporary URLs, or legacy aliases.
 
+The Alias field offers project-name suggestions for the selected container using
+VS Code or IntelliJ Dev Container metadata. Choose a suggestion or type your own
+alias; generated container hostnames stay unchanged.
+
 ## Access from inside the container
 
 If a Dev Container needs to call the host by the generated route name, add Docker host aliases in `runArgs`:

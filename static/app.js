@@ -295,6 +295,22 @@
       return;
     }
 
+    const source = document.getElementById('alias-source');
+    const aliasInput = document.getElementById('alias-value');
+    if (source && aliasInput) {
+      const updateSuggestions = () => {
+        const selected = source.selectedOptions[0];
+        const list = selected && selected.dataset.suggestions;
+        if (list) {
+          aliasInput.setAttribute('list', list);
+        } else {
+          aliasInput.removeAttribute('list');
+        }
+      };
+      source.addEventListener('change', updateSuggestions);
+      updateSuggestions();
+    }
+
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const formData = new FormData(form);

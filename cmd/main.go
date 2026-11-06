@@ -324,7 +324,8 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		routes := filterAliasHostnameRoutes(configGen.CurrentRoutes(), "chekov."+*baseDomain)
-		_, _ = w.Write([]byte(renderAliasPage(routeHostnames(routes), aliasManager.Snapshot())))
+		suggestions := aliasSuggestionsForRoutes(routes, homepageState.Snapshot())
+		_, _ = w.Write([]byte(renderAliasPage(routeHostnames(routes), aliasManager.Snapshot(), suggestions)))
 	})
 
 	homepageSnapshot := func() ([]ContainerDiagnostic, []PublishedEndpointRow, uint64) {

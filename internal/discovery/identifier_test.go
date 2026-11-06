@@ -5,6 +5,52 @@ import (
 	"testing"
 )
 
+func TestSuggestProjectNames(t *testing.T) {
+	tests := []struct {
+		name   string
+		labels map[string]string
+		want   []string
+	}{
+		{"vscode folder", map[string]string{
+			"devcontainer.local_folder": "/Users/developer/code/dotcom-rendering",
+			"devcontainer.metadata":     `[{"forwardPorts":[3030]}]`,
+		}, []string{"dotcom-rendering"}},
+		{"vscode metadata name", map[string]string{
+			"devcontainer.metadata": `[{"name":"My App"},{"name":"My App"}]`,
+		}, []string{"myapp"}},
+		{"intellij", map[string]string{
+			"com.intellij.devcontainer.presentable.name": "amiable",
+			"com.intellij.devcontainer.initial.model":    `{"name":"amiable"}`,
+			"com.intellij.devcontainer.model":            `{"forwardPorts":[9101]}`,
+			"com.intellij.devcontainer.sources.path":     "/Users/developer/code/amiable/",
+		}, []string{"amiable"}},
+		{"distinct names sorted", map[string]string{
+			"devcontainer.metadata":     `{"name":"Zulu"}`,
+			"devcontainer.local_folder": "/work/alpha",
+		}, []string{"alpha", "zulu"}},
+		{"invalid metadata retains folder", map[string]string{
+			"devcontainer.metadata":     `not json`,
+			"devcontainer.local_folder": "/work/project",
+		}, []string{"project"}},
+		{"invalid names", map[string]string{
+			"devcontainer.metadata":     `{"name":"!!!"}`,
+			"devcontainer.local_folder": "/",
+		}, []string{}},
+		{"plain container", nil, []string{}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			id := NewIdentifier()
+			if got := id.SuggestProjectNames(test.labels); !reflect.DeepEqual(got, test.want) {
+				t.Fatalf("SuggestProjectNames() = %#v, want %#v", got, test.want)
+			}
+			if got := id.ExtractProjectName("vigorous_carver", test.labels); got != "vigorous-carver" {
+				t.Fatalf("suggestions changed generated hostname: %s", got)
+			}
+		})
+	}
+}
+
 func TestExtractApplicationPortFromDevcontainerMetadata(t *testing.T) {
 	tests := []struct {
 		name     string

@@ -88,7 +88,7 @@ func renderTunnelPage(cfg AWSConfig, tunnels []TunnelEntry, mappedHostnames []st
 	return b.String()
 }
 
-func renderAliasPage(mappedHostnames []string, aliases []AliasEntry) string {
+func renderAliasPage(mappedHostnames []string, aliases []AliasEntry, suggestions map[string][]string) string {
 	var b strings.Builder
 	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: Aliases</title>")
 	b.WriteString(renderStylesheetLink())
@@ -97,15 +97,23 @@ func renderAliasPage(mappedHostnames []string, aliases []AliasEntry) string {
 	b.WriteString(renderPageHeader("Aliases"))
 	b.WriteString("<p class=\"muted\">Create a secondary hostname that points at an existing mapped route.</p>")
 	b.WriteString("<form id=\"alias-form\" method=\"post\" action=\"/api/aliases\">")
-	b.WriteString("<div class=\"row\"><div><label>Mapped domain</label><select name=\"sourceHostname\" id=\"alias-source\">")
+	b.WriteString("<div class=\"row\"><div><label for=\"alias-source\">Mapped domain</label><select name=\"sourceHostname\" id=\"alias-source\">")
 	if len(mappedHostnames) == 0 {
 		b.WriteString("<option value=\"\">No mapped domains</option>")
 	} else {
-		for _, hostname := range mappedHostnames {
-			b.WriteString("<option value=\"" + html.EscapeString(hostname) + "\">" + html.EscapeString(hostname) + "</option>")
+		for index, hostname := range mappedHostnames {
+			b.WriteString("<option value=\"" + html.EscapeString(hostname) + "\" data-suggestions=\"alias-suggestions-" + strconv.Itoa(index) + "\">" + html.EscapeString(hostname) + "</option>")
 		}
 	}
-	b.WriteString("</select></div><div><label>Alias</label><input name=\"alias\" id=\"alias-value\" placeholder=\"hello.local.dev-gutools.co.uk\" /></div></div>")
+	b.WriteString("</select></div><div><label for=\"alias-value\">Alias</label><input name=\"alias\" id=\"alias-value\" list=\"alias-suggestions-0\" placeholder=\"Choose a suggestion or type an alias\" />")
+	for index, hostname := range mappedHostnames {
+		b.WriteString("<datalist id=\"alias-suggestions-" + strconv.Itoa(index) + "\">")
+		for _, name := range suggestions[hostname] {
+			b.WriteString("<option value=\"" + html.EscapeString(name) + "\"></option>")
+		}
+		b.WriteString("</datalist>")
+	}
+	b.WriteString("</div></div>")
 	if len(mappedHostnames) == 0 {
 		b.WriteString("<div><button type=\"submit\" disabled>No mapped domains</button></div>")
 	} else {

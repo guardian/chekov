@@ -17,11 +17,12 @@ import (
 )
 
 type ContainerDiagnostic struct {
-	Name     string
-	Status   string
-	Reason   string
-	Routes   string
-	Metadata string
+	Name             string
+	Status           string
+	Reason           string
+	Routes           string
+	Metadata         string
+	AliasSuggestions []string
 }
 
 type DiagnosticsState struct {
@@ -91,9 +92,10 @@ func diagnoseContainer(
 	}
 
 	diag := ContainerDiagnostic{
-		Name:     containerInfo.Name,
-		Status:   "skipped",
-		Metadata: summarizeContainerMetadata(containerInfo),
+		Name:             containerInfo.Name,
+		Status:           "skipped",
+		Metadata:         summarizeContainerMetadata(containerInfo),
+		AliasSuggestions: identifier.SuggestProjectNames(containerInfo.Labels),
 	}
 
 	isDev := identifier.IsDevContainer(containerInfo.Name, containerInfo.Labels)

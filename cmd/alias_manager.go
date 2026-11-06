@@ -215,6 +215,20 @@ func routeHostnames(routes []nginx.Route) []string {
 	return out
 }
 
+func aliasSuggestionsForRoutes(routes []nginx.Route, rows []ContainerDiagnostic) map[string][]string {
+	byContainer := make(map[string][]string, len(rows))
+	for _, row := range rows {
+		byContainer[row.Name] = row.AliasSuggestions
+	}
+	suggestions := make(map[string][]string)
+	for _, route := range routes {
+		if names := byContainer[route.ContainerName]; len(names) > 0 {
+			suggestions[route.Hostname] = names
+		}
+	}
+	return suggestions
+}
+
 func filterAliasHostnameRoutes(routes []nginx.Route, aliases ...string) []nginx.Route {
 	if len(routes) == 0 || len(aliases) == 0 {
 		return routes

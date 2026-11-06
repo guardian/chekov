@@ -4,7 +4,8 @@ This page creates and manages additional hostnames that point at an existing map
 
 How to use it:
 - Choose a mapped domain from the list to use as the source host.
-- Enter a second hostname such as hello.local.dev-gutools.co.uk or a customer-facing alias for that route.
+- Choose a suggested project name from the Alias combobox, or type your own hostname such as hello.local.dev-gutools.co.uk.
+- Suggestions come from the selected container's Dev Container name metadata or project folder, including VS Code and IntelliJ labels. They do not change the original route.
 - Click Add alias to create the secondary hostname and reload the page.
 - Use Delete on any alias entry to remove it when it is no longer needed.
 
@@ -14,4 +15,3 @@ Requirements:
 - The generated nginx config must reload successfully before the alias becomes available.
 
 Aliases are useful when one service needs a friendly or temporary hostname while still sharing the same underlying route and backend.
-
