@@ -77,6 +77,11 @@ https://backend.local.dev-gutools.co.uk
 https://frontend.local.dev-gutools.co.uk
 ```
 
+A single labeled port also uses its label instead of the container name. Labels
+may contain dots: port `3030` labeled `rendering.dotcom` creates
+`https://rendering.dotcom.local.dev-gutools.co.uk`. Each dot-separated label must
+be a valid DNS label of at most 63 characters.
+
 ### 2) Inferred from container name and port
 
 When a container has multiple ports, the name plus chosen app port gives a stable route.

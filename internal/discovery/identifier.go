@@ -189,13 +189,9 @@ func (i *Identifier) SuggestProjectNames(labels map[string]string) []string {
 	return names
 }
 
-// SanitizeHostname sanitizes a string to be a valid DNS hostname label.
-// DNS labels:
-// - must start with alphanumeric
-// - may contain hyphens
-// - must end with alphanumeric
-// - max 63 characters
-// - only lowercase letters, digits, and hyphens
+// SanitizeHostname sanitizes a dot-separated DNS hostname.
+// Each label must be 1-63 lowercase alphanumeric or hyphen characters,
+// starting and ending with an alphanumeric character.
 func (i *Identifier) SanitizeHostname(name string) string {
 	// Remove leading slash if present
 	name = strings.TrimPrefix(name, "/")
@@ -206,21 +202,22 @@ func (i *Identifier) SanitizeHostname(name string) string {
 	// Replace underscores with hyphens
 	name = strings.ReplaceAll(name, "_", "-")
 
-	// Remove invalid characters (keep only alphanumeric and hyphen)
-	re := regexp.MustCompile(`[^a-z0-9-]`)
+	// Remove invalid characters (keep only alphanumeric, hyphen, and dot)
+	re := regexp.MustCompile(`[^a-z0-9-.]`)
 	name = re.ReplaceAllString(name, "")
 
 	// Remove leading/trailing hyphens
 	name = strings.Trim(name, "-")
 
 	// Check length
-	if len(name) == 0 || len(name) > i.maxHostnameLen {
+	if len(name) == 0 || len(name) > 253 {
 		return ""
 	}
 
-	// Validate against pattern
-	if !i.hostnameRegex.MatchString(name) {
-		return ""
+	for _, label := range strings.Split(name, ".") {
+		if len(label) > i.maxHostnameLen || !i.hostnameRegex.MatchString(label) {
+			return ""
+		}
 	}
 
 	return name
@@ -346,7 +343,7 @@ func (i *Identifier) ExtractRouteTargets(
 	var targets []RouteTarget
 
 	forwardedPortLabels := extractForwardedPortLabels(labels)
-	if len(forwardedPortLabels) > 1 {
+	if len(forwardedPortLabels) > 0 {
 		for _, entry := range forwardedPortLabels {
 			sanitized := i.SanitizeHostname(entry.Label)
 			if sanitized == "" {
