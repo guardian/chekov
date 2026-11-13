@@ -3,32 +3,36 @@
 ## Prerequisites
 
 - Docker Desktop or Docker Engine
-- TLS certificates for your local domain, typically via `mkcert`
-- A trusted local CA for the wildcard domain you use (for example `*.local.dev-gutools.co.uk`)
+- A trusted mkcert CA in the default macOS location, `~/Library/Application Support/mkcert`
 - DNS or `/etc/hosts` entries for the generated hostnames if you want browser access without an external resolver
 - Nothing else already listening on ports 80/443 on your machine
 
-## Step 1: Build the image
+## Step 1: Start the published image
+
+Replace `<published-tag>` with a tag containing the default-bridge fix:
 
 ```bash
-docker build -t chekov:local .
+docker run -d --name chekov --restart unless-stopped \
+  -p 80:80 -p 443:443 \
+  -v /var/run/docker.sock:/var/run/docker.sock:ro \
+  -v "$HOME/Library/Application Support/mkcert:/etc/nginx/mkcert:ro" \
+  'ghcr.io/guardian/chekov/nginx:<published-tag>'
 ```
 
-## Step 2: Start the proxy container
+Chekov generates wildcard certificates using your mkcert CA. The CA mount
+exposes its private key to the container; the Docker socket also grants
+powerful access to the Docker daemon despite the read-only mount. No separate
+certificate or log directories are needed. Controller logs are available with
+`docker exec chekov tail -n 100 /var/log/chekov/chekov.log`.
 
-```bash
-docker compose up -d --build
-```
+The previously published tag `sha-5a37866863aa3d6b5f1d1a78a317ede1c4851f13`
+does not include the default-bridge fix; a new image must be published before
+using this command with the default Docker network.
 
-This starts the proxy and mounts:
+To build and run the local source instead, use `docker compose up -d --build`.
+Compose uses the certificate and log mounts in `docker-compose.yml`.
 
-- the Docker socket read-only
-- your certificate directory into `/etc/nginx/certs`
-- the mkcert-local CA files for auto-generation when needed
-
-The entrypoint will create a wildcard certificate if `TLS_CERT` and `TLS_KEY` do not exist, using the local mkcert root if available. If no mkcert CA is configured, it falls back to a self-signed certificate.
-
-## Step 3: Run an app container or open a devcontainer
+## Step 2: Run an app container or open a devcontainer
 
 Any container with a reasonable name is usually enough:
 
@@ -44,7 +48,7 @@ Supported patterns include:
 - dev containers with forwarded ports or `portsAttributes`
 - any container that the built-in discovery heuristics recognize as a dev target
 
-## Step 4: Open the homepage
+## Step 3: Open the homepage
 
 Visit:
 
@@ -60,7 +64,7 @@ This page shows:
 - direct links to the generated app URLs
 - exported config endpoints
 
-## Step 5: Open your app
+## Step 4: Open your app
 
 After discovery, the app is usually available at:
 
@@ -126,7 +130,8 @@ if the data has changed, including alias and tunnel changes.
 1. Check the proxy logs:
 
 ```bash
-docker logs chekov | tail -n 100
+docker logs --tail 100 chekov
+docker exec chekov tail -n 100 /var/log/chekov/chekov.log
 ```
 
 2. Inspect the container metadata:

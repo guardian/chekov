@@ -3,8 +3,9 @@ package discovery
 import (
 	"fmt"
 	"log"
-	"strings"
+	"net"
 	"slices"
+	"strings"
 )
 
 // ResolvedRoute represents a resolved route from proxy to application.
@@ -39,9 +40,9 @@ func (nr *NetworkResolver) SetProxyNetworks(networks map[string]NetworkInfo) {
 
 // ResolveRoute resolves how to reach an application container.
 // Strategy:
-// 1. Find a shared network between proxy and container
-// 2. Use container name as hostname on that network
-// 3. Fall back to published port if available
+// 1. Use container DNS on a shared user-defined network
+// 2. Use the container's IP on the default bridge
+// 3. Fall back to a host port if available
 // 4. Return nil if unreachable
 func (nr *NetworkResolver) ResolveRoute(
 	containerName string,
@@ -51,15 +52,17 @@ func (nr *NetworkResolver) ResolveRoute(
 	containerNetworks map[string]NetworkInfo,
 	publishedPorts map[string][]PortBinding,
 ) *ResolvedRoute {
-	// First priority: find shared network
 	sharedNetworks := nr.findSharedNetworks(containerNetworks)
-	if len(sharedNetworks) > 0 {
-		networkName := sharedNetworks[0]
+	slices.Sort(sharedNetworks)
+	for _, networkName := range sharedNetworks {
+		if isDefaultNetwork(networkName) {
+			continue
+		}
 		route := &ResolvedRoute{
 			ContainerName: containerName,
 			ContainerID:   containerID,
 			Hostname:      hostname,
-			TargetHost:    containerName, // Use container name for DNS resolution
+			TargetHost:    containerName,
 			TargetPort:    appPort,
 			Network:       networkName,
 		}
@@ -70,7 +73,24 @@ func (nr *NetworkResolver) ResolveRoute(
 		return route
 	}
 
-	// Second priority: honor a hostname-prefixed host port such as 8082.example.com
+	if slices.Contains(sharedNetworks, "bridge") {
+		ip := net.ParseIP(containerNetworks["bridge"].IPAddress)
+		if ip != nil && ip.To4() != nil && !ip.IsUnspecified() {
+			route := &ResolvedRoute{
+				ContainerName: containerName,
+				ContainerID:   containerID,
+				Hostname:      hostname,
+				TargetHost:    ip.String(),
+				TargetPort:    appPort,
+				Network:       "bridge",
+			}
+			log.Printf("Resolved route via default bridge: %s -> %s:%d\n", hostname, route.TargetHost, appPort)
+			return route
+		}
+		log.Printf("WARNING: No usable IPv4 address for %s on default bridge\n", containerName)
+	}
+
+	// Honor a hostname-prefixed host port such as 8082.example.com.
 	if hostPort := extractHostnamePort(hostname); hostPort > 0 {
 		route := &ResolvedRoute{
 			ContainerName: containerName,
@@ -87,7 +107,6 @@ func (nr *NetworkResolver) ResolveRoute(
 		return route
 	}
 
-	// Third priority: published host port
 	hostPort := extractHostPort(publishedPorts, appPort)
 	if hostPort > 0 {
 		route := &ResolvedRoute{
@@ -106,7 +125,7 @@ func (nr *NetworkResolver) ResolveRoute(
 	}
 
 	log.Printf(
-		"WARNING: Unable to resolve route for %s: no shared networks and no published port\n",
+		"WARNING: Unable to resolve route for %s: no usable shared network or published port\n",
 		containerName,
 	)
 	return nil
