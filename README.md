@@ -8,10 +8,32 @@ It will also create aliases, tunnels, and shells for containers that are not dir
 
 ## Quick start example
 
+Ensure your trusted mkcert CA exists in the default macOS location and
+`chekov.local.dev-gutools.co.uk` and your application hostnames resolve to your
+machine. With Docker running and ports 80 and 443 free, start a published image
+(replace `<published-tag>` with a tag containing the default-bridge fix):
+
+```bash
+docker run -d --name chekov --restart unless-stopped \
+  -p 80:80 -p 443:443 \
+  -v /var/run/docker.sock:/var/run/docker.sock:ro \
+  -v "$HOME/Library/Application Support/mkcert:/etc/nginx/mkcert:ro" \
+  'ghcr.io/guardian/chekov/nginx:<published-tag>'
+```
+
+The mkcert mount gives Chekov access to the CA private key to generate
+certificates. The Docker socket grants powerful access to the Docker daemon,
+even when mounted read-only. See the [quick start guide](docs/QUICK-START.md)
+for prerequisites, troubleshooting, and the development setup.
+
+To build locally instead:
+
 ```bash
 docker build -t chekov:local .
 docker compose up -d --build
 ```
+
+For a local test without Compose, see [local testing](docs/BUILDING.md#local-testing-without-docker-compose).
 
 Then start a container:
 
