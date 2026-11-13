@@ -403,7 +403,7 @@ func renderHomepageHTML(rows []ContainerDiagnostic, revision uint64, endpointRow
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head>")
 	b.WriteString(fmt.Sprintf("<body data-page=\"homepage\" data-current-revision=\"%d\">", revision))
-	b.WriteString(renderPageHeader("Home"))
+	b.WriteString(renderMainPageHeader("Home"))
 	b.WriteString("<p id=\"routing-error\" role=\"alert\"")
 	if routingError == "" {
 		b.WriteString(" hidden")
@@ -446,13 +446,6 @@ func renderHomepageHTML(rows []ContainerDiagnostic, revision uint64, endpointRow
 		}
 	}
 	b.WriteString("</tbody></table>")
-	b.WriteString("<h2>Actions</h2><ul>")
-	b.WriteString("<li><a href=\"/aws-config\">Configure AWS credentials in this container</a></li>")
-	b.WriteString("<li><a href=\"/tunnels\">Start or stop tunnels to services</a></li>")
-	b.WriteString("<li><a href=\"/shell-launch\">Open a shell in a new tab</a></li>")
-	b.WriteString("<li><a href=\"/remote-shell-launch\">Open a bastion shell in a new tab</a></li>")
-	b.WriteString("<li><a href=\"/aliases\">Manage hostname aliases</a></li>")
-	b.WriteString("</ul>")
 	b.WriteString(renderHelpSection("homepage"))
 	b.WriteString("<h2>Debugging Container Services</h2><ul>")
 	b.WriteString("<li><a href=\"/logs\">View logs</a></li>")
@@ -482,6 +475,19 @@ func renderContainerCell(name, metadata string) string {
 
 func renderPageHeader(title string) string {
 	return fmt.Sprintf(`<div class="page-header"><div class="page-header-copy"><h1><a href="/" class="page-header-link">%s</a>: %s</h1><p class="page-tagline">"Excuse me. We are looking for nuclear wessels."</p></div><a href="/" class="site-icon-link" aria-label="Home"><img src="/static/icon.png" alt="Chekov home" width="32" height="32"></a></div>`, html.EscapeString("Chekov"), html.EscapeString(title))
+}
+
+func renderMainPageHeader(title string) string {
+	var b strings.Builder
+	b.WriteString(renderPageHeader(title))
+	b.WriteString(`<nav class="main-action-menu" aria-label="Main actions">`)
+	b.WriteString(`<a class="main-action" href="/aws-config"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3 3.5 7.5 12 12l8.5-4.5L12 3Z"/><path d="m3.5 12 8.5 4.5 8.5-4.5M3.5 16.5 12 21l8.5-4.5"/></svg><span class="main-action-title">AWS credentials</span><span class="main-action-description">Configure access</span></a>`)
+	b.WriteString(`<a class="main-action" href="/tunnels"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 7H6a4 4 0 0 0 0 8h2m8-8h2a4 4 0 0 1 0 8h-2M8 12h8"/><path d="M12 3v2m0 14v2"/></svg><span class="main-action-title">Tunnels</span><span class="main-action-description">Start or stop services</span></a>`)
+	b.WriteString(`<a class="main-action" href="/shell-launch"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 7 4 4-4 4m6 0h8"/><rect x="2.5" y="3.5" width="19" height="17" rx="2"/></svg><span class="main-action-title">Local shell</span><span class="main-action-description">Open a container shell</span></a>`)
+	b.WriteString(`<a class="main-action" href="/remote-shell-launch"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4m-5-9 3-3-3-3m5 6h4"/></svg><span class="main-action-title">Bastion shell</span><span class="main-action-description">Open a remote shell</span></a>`)
+	b.WriteString(`<a class="main-action" href="/aliases"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 13.5 8.5 15a4 4 0 0 1-5.7-5.7l4-4a4 4 0 0 1 5.7 0m1.5 5.2 1.5-1.5a4 4 0 0 1 5.7 5.7l-4 4a4 4 0 0 1-5.7 0M8.5 15.5l7-7"/></svg><span class="main-action-title">Aliases</span><span class="main-action-description">Manage hostnames</span></a>`)
+	b.WriteString(`</nav>`)
+	return b.String()
 }
 
 func renderStylesheetLink() string {
