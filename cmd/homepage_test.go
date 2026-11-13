@@ -111,6 +111,58 @@ func TestRenderHomepageHTMLUsesSharedStaticAssets(t *testing.T) {
 	if !strings.Contains(html, "frontend.local.dev") {
 		t.Fatalf("homepage HTML missing endpoint table row")
 	}
+	if strings.Count(html, `class="main-action"`) != 5 {
+		t.Fatalf("homepage action menu has %d items, want 5", strings.Count(html, `class="main-action"`))
+	}
+	if strings.Contains(html, "<h2>Actions</h2>") {
+		t.Fatalf("homepage still renders the old actions list")
+	}
+	for _, path := range []string{"/logs", "/shell-command-generator", "/nginx.conf", "/generated.conf", "/nginx/config", "/containers", "/debug"} {
+		if !strings.Contains(html, `href="`+path+`"`) {
+			t.Errorf("homepage missing debug link to %s", path)
+		}
+	}
+}
+
+func TestMainActionMenuAppearsOnMainPagesOnly(t *testing.T) {
+	pages := []struct {
+		name string
+		html string
+	}{
+		{name: "homepage", html: renderHomepageHTML(nil, 1, nil, "")},
+		{name: "AWS config", html: renderAWSConfigPage(AWSConfig{})},
+		{name: "tunnels", html: renderTunnelPage(AWSConfig{}, nil, nil)},
+		{name: "aliases", html: renderAliasPage(nil, nil, nil)},
+		{name: "local shell launch", html: renderShellLaunchPage()},
+		{name: "local shell", html: renderShellPage("", "")},
+		{name: "bastion shell launch", html: renderRemoteShellLaunchPage()},
+		{name: "bastion shell", html: renderRemoteShellPage("", "", "", "", "")},
+	}
+
+	for _, page := range pages {
+		t.Run(page.name, func(t *testing.T) {
+			if got := strings.Count(page.html, `class="main-action"`); got != 5 {
+				t.Fatalf("main action menu has %d items, want 5", got)
+			}
+		})
+	}
+
+	debugPages := []struct {
+		name string
+		html string
+	}{
+		{name: "debug", html: renderDebugPageHTML(nil, 1)},
+		{name: "containers", html: renderContainersHTML(nil)},
+		{name: "logs", html: renderLogsPage("")},
+		{name: "command generator", html: renderCommandGeneratorPage()},
+	}
+	for _, page := range debugPages {
+		t.Run("debug pages/"+page.name, func(t *testing.T) {
+			if strings.Contains(page.html, `class="main-action-menu"`) {
+				t.Fatalf("debug page unexpectedly renders the main action menu")
+			}
+		})
+	}
 }
 
 func TestStatusPaletteUsesGreenForRunning(t *testing.T) {
