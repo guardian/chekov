@@ -435,7 +435,7 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 	mux.HandleFunc("/aws-config", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			_, _ = w.Write([]byte(renderAWSConfigPage(tunnelManager.AWSConfigSnapshot())))
+			_, _ = w.Write([]byte(renderAWSConfigPage(tunnelManager.AWSConfigSnapshot(), r.URL.Query().Get("saved") == "1")))
 			return
 		}
 		if r.Method == http.MethodPost {
@@ -454,7 +454,7 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 				return
 			}
 			log.Printf("/aws-config save succeeded: remote=%s snapshot=%+v", r.RemoteAddr, tunnelManager.AWSConfigSnapshot())
-			http.Redirect(w, r, "/aws-config", http.StatusSeeOther)
+			http.Redirect(w, r, "/aws-config?saved=1", http.StatusSeeOther)
 			return
 		}
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)

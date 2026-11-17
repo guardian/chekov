@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "scripts": {
+    "test:browser": "node --test tests/menu.browser.test.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.55.0"
+  }
+}

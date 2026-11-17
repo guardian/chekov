@@ -126,23 +126,51 @@ func TestRenderHomepageHTMLUsesSharedStaticAssets(t *testing.T) {
 
 func TestMainActionMenuAppearsOnMainPagesOnly(t *testing.T) {
 	pages := []struct {
-		name string
-		html string
+		name        string
+		html        string
+		currentPath string
 	}{
 		{name: "homepage", html: renderHomepageHTML(nil, 1, nil, "")},
-		{name: "AWS config", html: renderAWSConfigPage(AWSConfig{})},
-		{name: "tunnels", html: renderTunnelPage(AWSConfig{}, nil, nil)},
-		{name: "aliases", html: renderAliasPage(nil, nil, nil)},
-		{name: "local shell launch", html: renderShellLaunchPage()},
-		{name: "local shell", html: renderShellPage("", "")},
-		{name: "bastion shell launch", html: renderRemoteShellLaunchPage()},
-		{name: "bastion shell", html: renderRemoteShellPage("", "", "", "", "")},
+		{name: "AWS config", html: renderAWSConfigPage(AWSConfig{}, false), currentPath: "/aws-config"},
+		{name: "tunnels", html: renderTunnelPage(AWSConfig{}, nil, nil), currentPath: "/tunnels"},
+		{name: "aliases", html: renderAliasPage(nil, nil, nil), currentPath: "/aliases"},
+		{name: "local shell launch", html: renderShellLaunchPage(), currentPath: "/shell-launch"},
+		{name: "bastion shell launch", html: renderRemoteShellLaunchPage(), currentPath: "/remote-shell-launch"},
 	}
 
 	for _, page := range pages {
 		t.Run(page.name, func(t *testing.T) {
 			if got := strings.Count(page.html, `class="main-action"`); got != 5 {
 				t.Fatalf("main action menu has %d items, want 5", got)
+			}
+			if page.currentPath == "" {
+				if strings.Contains(page.html, `aria-current="page"`) {
+					t.Fatal("homepage has an unexpected current menu item")
+				}
+			} else if !strings.Contains(page.html, `href="`+page.currentPath+`" aria-current="page"`) ||
+				strings.Count(page.html, `aria-current="page"`) != 1 {
+				t.Fatalf("expected exactly one current menu item for %s", page.currentPath)
+			}
+			if !strings.Contains(page.html, `<meta name="viewport" content="width=device-width, initial-scale=1">`) {
+				t.Fatal("main page missing viewport meta tag")
+			}
+		})
+	}
+
+	terminalPages := []struct {
+		name string
+		html string
+	}{
+		{name: "local shell", html: renderShellPage("", "")},
+		{name: "bastion shell", html: renderRemoteShellPage("", "", "", "", "")},
+	}
+	for _, page := range terminalPages {
+		t.Run(page.name, func(t *testing.T) {
+			if strings.Contains(page.html, `class="main-action-menu"`) {
+				t.Fatal("terminal page unexpectedly renders the main action menu")
+			}
+			if !strings.Contains(page.html, `id="terminal"`) {
+				t.Fatal("terminal page is missing its terminal")
 			}
 		})
 	}
@@ -238,15 +266,30 @@ func TestTunnelPageAcceptsFormPost(t *testing.T) {
 }
 
 func TestAWSConfigFormUsesPost(t *testing.T) {
-	html := renderAWSConfigPage(AWSConfig{BootstrapCommand: "aws configure set --profile frontend region us-east-1"})
-	if !strings.Contains(html, "<form id=\"aws-form\" method=\"post\" action=\"/aws-config\">") {
-		t.Fatalf("AWS config form missing explicit POST action: %s", html)
+	html := renderAWSConfigPage(AWSConfig{BootstrapCommand: "aws configure set --profile frontend region us-east-1"}, false)
+	if !strings.Contains(html, `id="aws-form" method="post" action="/aws-config" hidden`) {
+		t.Fatalf("AWS config manual-entry form should be hidden initially: %s", html)
 	}
-	if !strings.Contains(html, "Paste and Save") {
-		t.Fatalf("AWS config page missing paste-and-save action: %s", html)
+	if !strings.Contains(html, `id="paste-and-save-button">Save from clipboard</button>`) {
+		t.Fatalf("AWS config page missing save-from-clipboard action: %s", html)
+	}
+	if !strings.Contains(html, `id="manual-entry-toggle" aria-expanded="false" aria-controls="aws-form"`) {
+		t.Fatalf("AWS config page missing accessible manual-entry toggle: %s", html)
+	}
+	if !strings.Contains(html, `id="aws-save-status" class="aws-save-status" role="status" aria-live="polite" hidden`) {
+		t.Fatalf("AWS config page missing hidden save status: %s", html)
+	}
+	if !strings.Contains(renderAWSConfigPage(AWSConfig{}, true), "AWS credentials saved successfully.") {
+		t.Fatalf("AWS config page missing saved confirmation: %s", renderAWSConfigPage(AWSConfig{}, true))
+	}
+	if strings.Contains(html, "Exit code:") {
+		t.Fatalf("AWS config page still displays an exit code: %s", html)
+	}
+	if strings.Contains(html, "quick-paste-and-shell") || strings.Contains(html, "Quick paste, save, shell") {
+		t.Fatalf("AWS config page still contains the quick paste shell action: %s", html)
 	}
 	if !strings.Contains(html, "<button type=\"submit\">Save</button>") {
-		t.Fatalf("AWS config page missing renamed save button: %s", html)
+		t.Fatalf("AWS config page missing manual save button: %s", html)
 	}
 	if strings.Contains(html, "Save AWS config") {
 		t.Fatalf("AWS config page still contains old button label: %s", html)

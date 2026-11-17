@@ -123,32 +123,33 @@
   function setupAWSConfig() {
     const form = document.getElementById('aws-form');
     const pasteButton = document.getElementById('paste-and-save-button');
-    const quickButton = document.getElementById('quick-paste-and-shell-button');
+    const manualEntryToggle = document.getElementById('manual-entry-toggle');
+    const saveStatus = document.getElementById('aws-save-status');
     if (!form) {
       return;
     }
 
-    function inferProfileFromBootstrapCommand(text) {
-      if (!text || typeof text !== 'string') {
-        return '';
+    function setSaveStatus(message, state) {
+      if (saveStatus) {
+        saveStatus.textContent = message;
+        saveStatus.hidden = !message;
+        saveStatus.classList.toggle('is-saving', state === 'saving');
+        saveStatus.classList.toggle('is-error', state === 'error');
       }
-
-      const patterns = [
-        /aws\s+configure\s+set\s+--profile\s+([A-Za-z0-9._-]+)/i,
-        /(?:--profile|--profile=)\s*([A-Za-z0-9._-]+)/i,
-        /(?:AWS_PROFILE|aws_profile)\s*(?:=|:)\s*["']?([A-Za-z0-9._-]+)/i,
-        /(?:export\s+)?AWS_PROFILE\s*=\s*["']?([A-Za-z0-9._-]+)/i,
-      ];
-
-      for (const pattern of patterns) {
-        const match = text.match(pattern);
-        if (match && match[1]) {
-          return match[1];
-        }
-      }
-
-      return '';
     }
+
+    if (manualEntryToggle) {
+      manualEntryToggle.addEventListener('click', () => {
+        const show = form.hidden;
+        form.hidden = !show;
+        manualEntryToggle.setAttribute('aria-expanded', String(show));
+        manualEntryToggle.textContent = show ? 'Hide manual entry' : 'Enter credentials manually';
+        if (show) {
+          form.querySelector('textarea[name="bootstrapCommand"]')?.focus();
+        }
+      });
+    }
+    form.addEventListener('input', () => setSaveStatus('', ''));
 
     function clearBootstrapCommand() {
       const textarea = form.querySelector('textarea[name="bootstrapCommand"]');
@@ -163,82 +164,45 @@
 
     function looksLikeAWSBootstrapCommand(value) {
       const trimmed = normalizeBootstrapCommandText(value);
-      if (!trimmed) {
-        return true;
-      }
       return trimmed.toLowerCase().startsWith('aws configure');
     }
 
-    async function submitForm({ openShellAfterSave = false, popup = null } = {}) {
+    async function submitForm() {
+      setSaveStatus('Saving AWS credentials...', 'saving');
       const formData = new FormData(form);
       const bootstrapCommand = normalizeBootstrapCommandText(formData.get('bootstrapCommand'));
       if (bootstrapCommand && !looksLikeAWSBootstrapCommand(bootstrapCommand)) {
-        console.warn('[quick-shell] rejected bootstrap command that does not start with aws configure', { bootstrapCommandPreview: bootstrapCommand.slice(0, 80) });
-        alert('Clipboard contents must begin with "aws configure" after trimming whitespace.');
+        console.warn('[aws-config] rejected bootstrap command that does not start with aws configure', { bootstrapCommandPreview: bootstrapCommand.slice(0, 80) });
+        setSaveStatus('Commands must begin with "aws configure".', 'error');
         return false;
       }
       const payload = new URLSearchParams({
         bootstrapCommand,
       });
 
-      console.log('[quick-shell] submitForm start', {
-        openShellAfterSave,
-        bootstrapCommandLength: bootstrapCommand.length,
-        popupExists: !!popup,
-      });
+      try {
+        const response = await fetch('/api/aws-config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+          body: payload,
+        });
 
-      const response = await fetch('/aws-config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-        body: payload,
-      });
-
-      console.log('[quick-shell] submitForm response', {
-        status: response.status,
-        ok: response.ok,
-        redirected: response.redirected,
-        url: response.url,
-      });
-
-      if (!response.ok) {
-        const text = await response.text();
-        console.error('[quick-shell] submitForm failed', { status: response.status });
-        alert(text || 'failed');
+        if (!response.ok) {
+          const text = await response.text();
+          console.error('[aws-config] save failed', { status: response.status });
+          setSaveStatus(text || 'Unable to save AWS credentials.', 'error');
+          alert(text || 'failed');
+          return false;
+        }
+      } catch (error) {
+        console.error('[aws-config] save request failed', error);
+        setSaveStatus('Unable to save AWS credentials. Check the connection and try again.', 'error');
+        alert('Unable to save AWS credentials. Check the connection and try again.');
         return false;
       }
 
       clearBootstrapCommand();
-
-      if (openShellAfterSave) {
-        const profile = inferProfileFromBootstrapCommand(bootstrapCommand);
-        console.log('[quick-shell] profile inference', { profile, bootstrapCommandLength: bootstrapCommand.length });
-        if (!profile) {
-          console.warn('[quick-shell] no profile inferred from bootstrap command');
-          alert('No AWS profile could be inferred from the pasted command.');
-          if (popup) {
-            popup.close();
-          }
-          return false;
-        }
-        const query = new URLSearchParams({
-          profile,
-          region: 'eu-west-1',
-        });
-        const url = '/shell?' + query.toString();
-        console.log('[quick-shell] opening shell URL', { url, profile, region: 'eu-west-1' });
-        if (popup) {
-          popup.location.href = url;
-          popup.focus();
-          console.log('[quick-shell] shell URL assigned to popup', { popupLocation: popup.location.href });
-        } else {
-          const opened = window.open(url, '_blank');
-          console.log('[quick-shell] window.open result', { opened: !!opened, url });
-        }
-        return true;
-      }
-
-      console.log('[quick-shell] normal save; redirecting to /aws-config');
-      window.location.href = '/aws-config';
+      setSaveStatus('AWS credentials saved successfully.', 'success');
       return true;
     }
 
@@ -249,82 +213,34 @@
 
     if (pasteButton) {
       pasteButton.addEventListener('click', async () => {
-        console.log('[quick-shell] paste-and-save click');
+        setSaveStatus('Saving AWS credentials...', 'saving');
+        let text;
         try {
-          const text = await navigator.clipboard.readText();
-          console.log('[quick-shell] clipboard read for paste-and-save', { length: text.length });
-          if (!looksLikeAWSBootstrapCommand(text)) {
-            console.warn('[quick-shell] clipboard rejected for paste-and-save', { preview: text.slice(0, 80) });
-            alert('Clipboard contents must begin with "aws configure" after trimming whitespace.');
-            return;
-          }
-          const textarea = form.querySelector('textarea[name="bootstrapCommand"]');
-          if (textarea) {
-            textarea.value = text;
-            console.log('[quick-shell] textarea populated from clipboard');
-          }
-          await submitForm();
-        } catch (_error) {
-          console.error('[quick-shell] paste-and-save failed', _error);
+          text = await navigator.clipboard.readText();
+        } catch (error) {
+          console.error('[aws-config] clipboard read failed', error);
+          setSaveStatus('Unable to read clipboard contents.', 'error');
           alert('Unable to read clipboard contents.');
-        }
-      });
-    }
-
-    const quickButtonTargets = Array.from(
-      new Set([
-        document.getElementById('quick-paste-and-shell-button'),
-        document.querySelector('[data-action="quick-paste-and-shell"]'),
-      ].filter(Boolean))
-    );
-
-    quickButtonTargets.forEach((button) => {
-      if (button.dataset.quickShellBound === 'true') {
-        return;
-      }
-      button.dataset.quickShellBound = 'true';
-      button.addEventListener('click', async () => {
-        console.log('[quick-shell] quick button clicked');
-        const shellTab = window.open('', '_blank');
-        console.log('[quick-shell] shell tab created', { shellTabExists: !!shellTab, url: 'about:blank' });
-        if (!shellTab) {
-          console.warn('[quick-shell] new tab was blocked before save');
-          alert('Opening a new shell tab was blocked. Please allow new tabs for this page and try again.');
           return;
         }
 
-        try {
-          const text = await navigator.clipboard.readText();
-          console.log('[quick-shell] clipboard read for quick action', { length: text.length });
-          if (!looksLikeAWSBootstrapCommand(text)) {
-            console.warn('[quick-shell] clipboard rejected for quick action', { preview: text.slice(0, 80) });
-            alert('Clipboard contents must begin with "aws configure" after trimming whitespace.');
-            shellTab.close();
-            return;
-          }
-          const textarea = form.querySelector('textarea[name="bootstrapCommand"]');
-          if (textarea) {
-            textarea.value = text;
-            console.log('[quick-shell] textarea populated for quick action');
-          }
-
-          const ok = await submitForm({ openShellAfterSave: true, popup: shellTab });
-          if (!ok) {
-            console.log('[quick-shell] quick action did not complete successfully');
-            return;
-          }
-        } catch (_error) {
-          console.error('[quick-shell] quick action failed', _error);
-          alert('Unable to read clipboard contents.');
-          if (shellTab) {
-            shellTab.close();
-          }
+        const command = normalizeBootstrapCommandText(text);
+        if (!command) {
+          setSaveStatus('Clipboard is empty. Copy AWS credential commands and try again.', 'error');
+          return;
         }
-      });
-    });
+        if (!looksLikeAWSBootstrapCommand(command)) {
+          console.warn('[aws-config] clipboard rejected for paste-and-save', { preview: command.slice(0, 80) });
+          setSaveStatus('Clipboard contents must begin with "aws configure".', 'error');
+          return;
+        }
 
-    if (quickButton) {
-      quickButton.dataset.quickShellBound = 'true';
+        const textarea = form.querySelector('textarea[name="bootstrapCommand"]');
+        if (textarea) {
+          textarea.value = command;
+        }
+        await submitForm();
+      });
     }
   }
 
