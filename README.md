@@ -14,11 +14,13 @@ machine. With Docker running and ports 80 and 443 free, start a published image
 (replace `<published-tag>` with a tag containing the default-bridge fix):
 
 ```bash
+docker pull ghcr.io/guardian/chekov/nginx:latest
+
 docker run -d --name chekov --restart unless-stopped \
   -p 80:80 -p 443:443 \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \
   -v "$HOME/Library/Application Support/mkcert:/etc/nginx/mkcert:ro" \
-  'ghcr.io/guardian/chekov/nginx:<published-tag>'
+  'ghcr.io/guardian/chekov/nginx:latest'
 ```
 
 The mkcert mount gives Chekov access to the CA private key to generate
