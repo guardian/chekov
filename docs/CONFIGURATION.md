@@ -81,6 +81,12 @@ previous certificate, which may not cover the alias.
 
 Used by the entrypoint when generating a local wildcard cert with `mkcert`.
 
+When `LOCAL_CA_CERT` exists, startup also installs this public CA certificate
+into the container's system trust store. This lets tools such as `curl` in
+Chekov shell sessions verify locally signed HTTPS certificates without extra
+flags. The CA private key is not installed into the trust store. Tools with
+their own CA bundles may require separate configuration.
+
 Defaults:
 
 ```text

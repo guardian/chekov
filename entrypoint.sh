@@ -9,6 +9,16 @@ LOCAL_CA_DIR="${LOCAL_CA_DIR:-/etc/nginx/mkcert}"
 LOCAL_CA_CERT="${LOCAL_CA_CERT:-${LOCAL_CA_DIR}/rootCA.pem}"
 LOCAL_CA_KEY="${LOCAL_CA_KEY:-${LOCAL_CA_DIR}/rootCA-key.pem}"
 
+if [ -f "$LOCAL_CA_CERT" ]; then
+  echo "Installing local CA certificate into the system trust store"
+  mkdir -p /usr/local/share/ca-certificates
+  cp "$LOCAL_CA_CERT" /usr/local/share/ca-certificates/chekov-local-ca.crt
+  chmod 644 /usr/local/share/ca-certificates/chekov-local-ca.crt
+  update-ca-certificates
+else
+  echo "Local CA certificate not found at $LOCAL_CA_CERT; system trust store unchanged"
+fi
+
 mkdir -p "$(dirname "$TLS_CERT")" "$(dirname "$TLS_KEY")" "$(dirname "$GENERATED_CONFIG")"
 
 EFFECTIVE_TLS_CERT="$TLS_CERT"
