@@ -1,27 +1,34 @@
 package main
 
 import (
-	"fmt"
 	"html"
 	"strconv"
 	"strings"
 )
 
-func renderAWSConfigPage(cfg AWSConfig) string {
+func renderAWSConfigPage(cfg AWSConfig, saved bool) string {
 	var b strings.Builder
 	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: AWS Config</title>")
-	b.WriteString(renderStylesheetLink())
+	b.WriteString(renderMainStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head><body data-page=\"aws-config\">")
-	b.WriteString(renderMainPageHeader("AWS Config"))
-	b.WriteString("<p>Paste the exact shell command(s) to run in the current container user. This is the source of truth; profile and region are supplied inside the command itself.</p>")
-	b.WriteString("<div class=\"form-actions\"><button type=\"button\" id=\"paste-and-save-button\">Paste and Save</button><button type=\"button\" id=\"quick-paste-and-shell-button\" data-action=\"quick-paste-and-shell\">Quick paste, save, shell</button></div>")
-	b.WriteString("<form id=\"aws-form\" method=\"post\" action=\"/aws-config\">")
+	b.WriteString(renderMainPageHeader("AWS Config", "/aws-config"))
+	b.WriteString("<p>Save the AWS credential bootstrap commands currently in your clipboard. Profile and region are supplied inside the commands.</p>")
+	b.WriteString("<div class=\"form-actions\"><button type=\"button\" id=\"paste-and-save-button\">Save from clipboard</button><button type=\"button\" id=\"manual-entry-toggle\" aria-expanded=\"false\" aria-controls=\"aws-form\">Enter credentials manually</button></div>")
+	b.WriteString("<p id=\"aws-save-status\" class=\"aws-save-status\" role=\"status\" aria-live=\"polite\"")
+	if !saved {
+		b.WriteString(" hidden")
+	}
+	b.WriteString(">")
+	if saved {
+		b.WriteString("AWS credentials saved successfully.")
+	}
+	b.WriteString("</p>")
+	b.WriteString("<form id=\"aws-form\" method=\"post\" action=\"/aws-config\" hidden>")
 	b.WriteString("<label>Credential bootstrap commands</label><textarea name=\"bootstrapCommand\">" + html.EscapeString(cfg.BootstrapCommand) + "</textarea>")
 	b.WriteString("<div class=\"form-actions\"><button type=\"submit\">Save</button></div>")
 	b.WriteString("</form>")
 	b.WriteString("<pre class=\"aws-output\">" + html.EscapeString(cfg.Output) + "</pre>")
-	b.WriteString("<div class=\"aws-exit-status\">Exit code: " + html.EscapeString(fmt.Sprintf("%d", cfg.ExitCode)) + "</div>")
 	b.WriteString(renderHelpSection("aws-config"))
 	b.WriteString("<script src=\"/static/app.js\"></script>")
 	b.WriteString("</body></html>")
@@ -31,10 +38,10 @@ func renderAWSConfigPage(cfg AWSConfig) string {
 func renderTunnelPage(cfg AWSConfig, tunnels []TunnelEntry, mappedHostnames []string) string {
 	var b strings.Builder
 	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: Tunnels</title>")
-	b.WriteString(renderStylesheetLink())
+	b.WriteString(renderMainStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head><body data-page=\"tunnel-page\">")
-	b.WriteString(renderMainPageHeader("Tunnels"))
+	b.WriteString(renderMainPageHeader("Tunnels", "/tunnels"))
 	b.WriteString("<form id=\"tunnel-form\" method=\"post\">")
 	b.WriteString("<div class=\"row\"><div><label>Name</label><input name=\"name\" placeholder=\"myapp\" /></div><div><label>Profile</label>" + renderProfileSelect("profile", cfg.Profile) + "</div><div><label>Region</label>" + renderRegionSelect("region", cfg.Region) + "</div></div>")
 	b.WriteString("<div class=\"row form-row-spaced\"><div><label>Stack</label><input name=\"stack\" placeholder=\"frontend\" /></div><div><label>Stage</label><input name=\"stage\" placeholder=\"CODE\" list=\"stage-options\" /></div><div><label>App</label><input name=\"app\" placeholder=\"frontend\" /></div></div>")
@@ -91,10 +98,10 @@ func renderTunnelPage(cfg AWSConfig, tunnels []TunnelEntry, mappedHostnames []st
 func renderAliasPage(mappedHostnames []string, aliases []AliasEntry, suggestions map[string][]string) string {
 	var b strings.Builder
 	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: Aliases</title>")
-	b.WriteString(renderStylesheetLink())
+	b.WriteString(renderMainStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head><body data-page=\"alias-page\">")
-	b.WriteString(renderMainPageHeader("Aliases"))
+	b.WriteString(renderMainPageHeader("Aliases", "/aliases"))
 	b.WriteString("<p class=\"muted\">Create a secondary hostname that points at an existing mapped route.</p>")
 	b.WriteString("<form id=\"alias-form\" method=\"post\" action=\"/api/aliases\">")
 	b.WriteString("<div class=\"row\"><div><label for=\"alias-source\">Mapped domain</label><select name=\"sourceHostname\" id=\"alias-source\">")
@@ -186,7 +193,7 @@ func renderRemoteShellPage(profile, region, stack, stage, app string) string {
 	b.WriteString(renderStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head><body data-page=\"shell-terminal\">")
-	b.WriteString(renderMainPageHeader("Remote Bastion Shell (" + profile + "/" + region + ")"))
+	b.WriteString(renderPageHeader("Remote Bastion Shell (" + profile + "/" + region + ")"))
 	b.WriteString("<p class=\"muted\">Connected to the running EC2 instance matching app=\"" + app + "\" stack=\"" + stack + "\" stage=\"" + stage + "\".</p>")
 	b.WriteString("<div id=\"terminal\" style=\"height: 520px; background: #000; border-radius: 8px; padding: 10px;\"></div>")
 	b.WriteString(renderHelpSection("remote-shell"))
@@ -221,10 +228,10 @@ func renderRemoteShellPage(profile, region, stack, stage, app string) string {
 func renderRemoteShellLaunchPage() string {
 	var b strings.Builder
 	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: Open Remote Bastion Shell</title>")
-	b.WriteString(renderStylesheetLink())
+	b.WriteString(renderMainStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head><body data-page=\"remote-shell-launch\">")
-	b.WriteString(renderMainPageHeader("Open Remote Bastion Shell"))
+	b.WriteString(renderMainPageHeader("Open Remote Bastion Shell", "/remote-shell-launch"))
 	b.WriteString("<p class=\"muted\">Open an interactive shell on the bastion EC2 instance selected by app, stack, and stage.</p>")
 	b.WriteString("<form id=\"remote-shell-launch-form\" action=\"/remote-shell\" method=\"get\" target=\"_blank\">")
 	b.WriteString("<div class=\"row\"><div><label>Profile</label>" + renderProfileSelect("profile", "") + "</div>")
@@ -250,7 +257,7 @@ func renderShellPage(profile, region string) string {
 	b.WriteString(renderStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head><body data-page=\"shell-terminal\">")
-	b.WriteString(renderMainPageHeader("Local Container Shell (" + profile + "/" + region + ")"))
+	b.WriteString(renderPageHeader("Local Container Shell (" + profile + "/" + region + ")"))
 	b.WriteString("<div id=\"terminal\" style=\"height: 520px; background: #000; border-radius: 8px; padding: 10px;\"></div>")
 	b.WriteString(renderHelpSection("shell-timeout"))
 	b.WriteString("<script src=\"https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js\"></script>")
@@ -390,10 +397,10 @@ func renderRegionSelect(name, value string) string {
 func renderShellLaunchPage() string {
 	var b strings.Builder
 	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: Open Shell</title>")
-	b.WriteString(renderStylesheetLink())
+	b.WriteString(renderMainStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head><body data-page=\"shell-launch\">")
-	b.WriteString(renderMainPageHeader("Open Shell"))
+	b.WriteString(renderMainPageHeader("Open Shell", "/shell-launch"))
 	b.WriteString("<p class=\"muted\">Open a shell inside the chekov container with AWS environment variables pre-set.</p>")
 	b.WriteString("<form id=\"shell-launch-form\" action=\"/shell\" method=\"get\" target=\"_blank\">")
 	b.WriteString("<div class=\"row\"><div><label>Profile</label>" + renderProfileSelect("profile", "") + "</div>")

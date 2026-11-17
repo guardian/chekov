@@ -3,9 +3,9 @@ AWS config page
 This page stores the bootstrap shell commands that initialize your AWS credentials and default profile details for tunnel creation.
 
 How to use it:
-- Paste the exact AWS login or credential bootstrap commands you want to run in this container.
-- Use the top Paste and Save action if you want to load the current clipboard into the textarea and immediately persist it.
-- Save the configuration once the command is correct.
+- Copy the AWS login or credential bootstrap commands you want to run in this container, then choose Save from clipboard.
+- To enter commands directly, choose Enter credentials manually and then Save.
+- A success message appears after the credentials are saved.
 
 Requirements:
 - The AWS profile, region, and any SSO or credential helpers must be valid for the environment where the tunnel is created.
@@ -13,4 +13,3 @@ Requirements:
 If the command fails, the Output area and Exit code below the form show the exact failure details.
 
 After this is configured, the Tunnels page can create outbound SSM or host-tunnel sessions without re-entering AWS credentials each time.
-
