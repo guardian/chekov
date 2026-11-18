@@ -21,7 +21,7 @@ func renderAWSConfigPage(cfg AWSConfig, saved bool) string {
 	}
 	b.WriteString(">")
 	if saved {
-		b.WriteString("AWS credentials saved successfully.")
+		b.WriteString("AWS credentials saved and validated successfully.")
 	}
 	b.WriteString("</p>")
 	b.WriteString("<form id=\"aws-form\" method=\"post\" action=\"/aws-config\" hidden>")

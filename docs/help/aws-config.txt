@@ -5,11 +5,12 @@ This page stores the bootstrap shell commands that initialize your AWS credentia
 How to use it:
 - Copy the AWS login or credential bootstrap commands you want to run in this container, then choose Save from clipboard.
 - To enter commands directly, choose Enter credentials manually and then Save.
-- A success message appears after the credentials are saved.
+- Saving runs aws sts get-caller-identity for each discovered credential profile.
+- A success message appears only after STS validation succeeds. Expired or otherwise invalid profiles are removed from the credentials file and their validation errors are shown on screen.
 
 Requirements:
 - The AWS profile, region, and any SSO or credential helpers must be valid for the environment where the tunnel is created.
 
-If the command fails, the Output area and Exit code below the form show the exact failure details.
+If the command or STS check fails, the save status shows the failure details. STS validation requires a working connection to AWS; connection failures are also reported as errors.
 
 After this is configured, the Tunnels page can create outbound SSM or host-tunnel sessions without re-entering AWS credentials each time.

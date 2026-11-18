@@ -168,7 +168,7 @@
     }
 
     async function submitForm() {
-      setSaveStatus('Saving AWS credentials...', 'saving');
+      setSaveStatus('Saving and validating AWS credentials...', 'saving');
       const formData = new FormData(form);
       const bootstrapCommand = normalizeBootstrapCommandText(formData.get('bootstrapCommand'));
       if (bootstrapCommand && !looksLikeAWSBootstrapCommand(bootstrapCommand)) {
@@ -202,7 +202,7 @@
       }
 
       clearBootstrapCommand();
-      setSaveStatus('AWS credentials saved successfully.', 'success');
+      setSaveStatus('AWS credentials saved and validated successfully.', 'success');
       return true;
     }
 
@@ -213,7 +213,7 @@
 
     if (pasteButton) {
       pasteButton.addEventListener('click', async () => {
-        setSaveStatus('Saving AWS credentials...', 'saving');
+        setSaveStatus('Saving and validating AWS credentials...', 'saving');
         let text;
         try {
           text = await navigator.clipboard.readText();

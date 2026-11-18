@@ -7,6 +7,17 @@ go mod download
 go build -o chekov ./cmd
 ```
 
+Docker discovery uses the separate `github.com/moby/moby/client` and
+`github.com/moby/moby/api` modules, not the legacy module containing the daemon.
+The client negotiates the Docker API version automatically and requires a
+daemon supporting API 1.40 or later.
+
+Run the Docker wrapper tests with `go test ./internal/discovery`. To also check
+read-only discovery against a running daemon, use
+`CHEKOV_DOCKER_INTEGRATION=1 go test ./internal/discovery -run TestDockerClientIntegration -v`.
+The integration test respects the standard `DOCKER_HOST` and Docker TLS environment
+variables.
+
 ## Docker build
 
 ```bash

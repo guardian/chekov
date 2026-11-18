@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/netip"
 	"strings"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/client"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/client"
 )
 
 // ContainerInfo holds metadata about a discovered container.
@@ -43,16 +44,13 @@ type DockerClient struct {
 
 // NewDockerClient creates a new Docker client.
 func NewDockerClient(ctx context.Context) (*DockerClient, error) {
-	c, err := client.NewClientWithOpts(
-		client.FromEnv,
-		client.WithAPIVersionNegotiation(),
-	)
+	c, err := client.New(client.FromEnv)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Docker client: %w", err)
 	}
 
 	// Verify connection
-	_, err = c.Ping(ctx)
+	_, err = c.Ping(ctx, client.PingOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to ping Docker daemon: %w", err)
 	}
@@ -63,13 +61,13 @@ func NewDockerClient(ctx context.Context) (*DockerClient, error) {
 
 // ListContainers returns all running containers.
 func (dc *DockerClient) ListContainers(ctx context.Context) ([]ContainerInfo, error) {
-	containers, err := dc.client.ContainerList(ctx, types.ContainerListOptions{})
+	containers, err := dc.client.ContainerList(ctx, client.ContainerListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list containers: %w", err)
 	}
 
 	var result []ContainerInfo
-	for _, c := range containers {
+	for _, c := range containers.Items {
 		info := dc.parseContainer(c)
 		result = append(result, info)
 	}
@@ -78,7 +76,7 @@ func (dc *DockerClient) ListContainers(ctx context.Context) ([]ContainerInfo, er
 }
 
 // parseContainer converts a Docker container to ContainerInfo.
-func (dc *DockerClient) parseContainer(c types.Container) ContainerInfo {
+func (dc *DockerClient) parseContainer(c container.Summary) ContainerInfo {
 	// Remove leading slash from name
 	name := strings.TrimPrefix(c.Names[0], "/")
 
@@ -101,7 +99,7 @@ func (dc *DockerClient) parseContainer(c types.Container) ContainerInfo {
 		if p.PublicPort > 0 {
 			key := fmt.Sprintf("%d/tcp", p.PrivatePort)
 			binding := PortBinding{
-				HostIP:   p.IP,
+				HostIP:   addressString(p.IP),
 				HostPort: fmt.Sprintf("%d", p.PublicPort),
 			}
 			publishedPorts[key] = append(publishedPorts[key], binding)
@@ -136,10 +134,11 @@ func (dc *DockerClient) parseContainer(c types.Container) ContainerInfo {
 
 // InspectContainer gets detailed info about a specific container.
 func (dc *DockerClient) InspectContainer(ctx context.Context, containerID string) (*ContainerInfo, error) {
-	resp, err := dc.client.ContainerInspect(ctx, containerID)
+	result, err := dc.client.ContainerInspect(ctx, containerID, client.ContainerInspectOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to inspect container: %w", err)
 	}
+	resp := result.Container
 
 	// Remove leading slash from name
 	name := strings.TrimPrefix(resp.Name, "/")
@@ -148,7 +147,7 @@ func (dc *DockerClient) InspectContainer(ctx context.Context, containerID string
 	exposedPorts := []int{}
 	for portStr := range resp.Config.ExposedPorts {
 		// portStr format: "3000/tcp", "8000/udp", etc.
-		portStrValue := string(portStr)
+		portStrValue := portStr.String()
 		if strings.Contains(portStrValue, "/tcp") {
 			portNumStr := strings.Split(portStrValue, "/")[0]
 			var port int
@@ -169,7 +168,7 @@ func (dc *DockerClient) InspectContainer(ctx context.Context, containerID string
 			}
 			for _, binding := range bindings {
 				b := PortBinding{
-					HostIP:   binding.HostIP,
+					HostIP:   addressString(binding.HostIP),
 					HostPort: binding.HostPort,
 				}
 				publishedPorts[key] = append(publishedPorts[key], b)
@@ -186,8 +185,8 @@ func (dc *DockerClient) InspectContainer(ctx context.Context, containerID string
 		for netName, netInfo := range resp.NetworkSettings.Networks {
 			networks = append(networks, netName)
 			networkSettings[netName] = NetworkInfo{
-				Gateway:   netInfo.Gateway,
-				IPAddress: netInfo.IPAddress,
+				Gateway:   addressString(netInfo.Gateway),
+				IPAddress: addressString(netInfo.IPAddress),
 			}
 		}
 	}
@@ -209,18 +208,20 @@ func (dc *DockerClient) InspectContainer(ctx context.Context, containerID string
 // Yields container start, stop, die, destroy, rename events
 // and network connect, disconnect events.
 func (dc *DockerClient) WatchEvents(ctx context.Context) (<-chan events.Message, <-chan error) {
-	msgChan, errChan := dc.client.Events(ctx, types.EventsOptions{})
-	return msgChan, errChan
+	result := dc.client.Events(ctx, client.EventsListOptions{})
+	return result.Messages, result.Err
 }
 
 // ConnectToNetwork connects a container to a network.
 func (dc *DockerClient) ConnectToNetwork(ctx context.Context, containerID, networkName string) error {
-	return dc.client.NetworkConnect(ctx, networkName, containerID, nil)
+	_, err := dc.client.NetworkConnect(ctx, networkName, client.NetworkConnectOptions{Container: containerID})
+	return err
 }
 
 // DisconnectFromNetwork disconnects a container from a network.
 func (dc *DockerClient) DisconnectFromNetwork(ctx context.Context, containerID, networkName string) error {
-	return dc.client.NetworkDisconnect(ctx, networkName, containerID, false)
+	_, err := dc.client.NetworkDisconnect(ctx, networkName, client.NetworkDisconnectOptions{Container: containerID})
+	return err
 }
 
 // Close closes the Docker client connection.
@@ -231,4 +232,11 @@ func (dc *DockerClient) Close() error {
 // GetProxyContainerInfo returns info about this container.
 func (dc *DockerClient) GetProxyContainerInfo(ctx context.Context, containerID string) (*ContainerInfo, error) {
 	return dc.InspectContainer(ctx, containerID)
+}
+
+func addressString(address netip.Addr) string {
+	if !address.IsValid() {
+		return ""
+	}
+	return address.String()
 }

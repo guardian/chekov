@@ -1,12 +1,53 @@
 package main
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/dev-tools/chekov/internal/discovery"
 	"github.com/dev-tools/chekov/internal/nginx"
 )
+
+func TestAliasSourceAcceptsShortHostnames(t *testing.T) {
+	for _, baseDomain := range []string{"local.dev-gutools.co.uk", "custom.local.dev"} {
+		t.Run(baseDomain, func(t *testing.T) {
+			source := "api." + baseDomain
+			routes := []nginx.Route{
+				{Hostname: source, TargetHost: "127.0.0.1", TargetPort: 8080},
+				{Hostname: "prod.api." + baseDomain, TargetHost: "127.0.0.1", TargetPort: 9090},
+			}
+			manager := NewAliasManager()
+			short, err := manager.AddAlias("api", "public", baseDomain, routes)
+			if err != nil {
+				t.Fatal(err)
+			}
+			full, err := manager.AddAlias(source, "public", baseDomain, routes)
+			if err != nil || !reflect.DeepEqual(short, full) || len(manager.Snapshot()) != 1 {
+				t.Fatalf("short and full source should be equivalent: short=%+v full=%+v err=%v", short, full, err)
+			}
+			if short.SourceHostname != source || short.TargetPort != 8080 {
+				t.Fatalf("unexpected normalized source or target: %+v", short)
+			}
+			dotted, err := manager.AddAlias("prod.api", "production", baseDomain, routes)
+			if err != nil || dotted.SourceHostname != "prod.api."+baseDomain || dotted.TargetPort != 9090 {
+				t.Fatalf("dotted source failed: %+v, %v", dotted, err)
+			}
+			if _, err := manager.AddAlias("api", "api", baseDomain, routes); err == nil {
+				t.Fatal("self-alias should be rejected after source normalization")
+			}
+			for _, invalid := range []string{"", "missing", "bad/name"} {
+				if _, err := manager.AddAlias(invalid, "other", baseDomain, routes); err == nil {
+					t.Errorf("unmapped or invalid source %q was accepted", invalid)
+				}
+			}
+			merged := manager.MergeRoutes(routes)
+			if len(merged) != 4 {
+				t.Fatalf("normalized source aliases not merged: %+v", merged)
+			}
+		})
+	}
+}
 
 func TestAliasPageExcludesChekovMappedDomain(t *testing.T) {
 	for _, baseDomain := range []string{"local.dev-gutools.co.uk", "custom.local.dev"} {

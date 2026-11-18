@@ -59,13 +59,19 @@ func (m *AliasManager) AddAlias(sourceHostname string, rawAlias string, baseDoma
 	if err != nil {
 		return AliasEntry{}, err
 	}
-	if aliasHostname == sourceHostname {
-		return AliasEntry{}, fmt.Errorf("alias must be different from the mapped hostname")
-	}
-
 	match := findRouteByHostname(routes, sourceHostname)
 	if match == nil {
+		sourceHostname, err = normalizeAliasHostname(sourceHostname, baseDomain)
+		if err != nil {
+			return AliasEntry{}, fmt.Errorf("invalid source hostname: %w", err)
+		}
+		match = findRouteByHostname(routes, sourceHostname)
+	}
+	if match == nil {
 		return AliasEntry{}, fmt.Errorf("hostname %q is not currently mapped", sourceHostname)
+	}
+	if aliasHostname == sourceHostname {
+		return AliasEntry{}, fmt.Errorf("alias must be different from the mapped hostname")
 	}
 
 	m.mu.Lock()

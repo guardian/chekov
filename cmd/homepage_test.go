@@ -279,7 +279,7 @@ func TestAWSConfigFormUsesPost(t *testing.T) {
 	if !strings.Contains(html, `id="aws-save-status" class="aws-save-status" role="status" aria-live="polite" hidden`) {
 		t.Fatalf("AWS config page missing hidden save status: %s", html)
 	}
-	if !strings.Contains(renderAWSConfigPage(AWSConfig{}, true), "AWS credentials saved successfully.") {
+	if !strings.Contains(renderAWSConfigPage(AWSConfig{}, true), "AWS credentials saved and validated successfully.") {
 		t.Fatalf("AWS config page missing saved confirmation: %s", renderAWSConfigPage(AWSConfig{}, true))
 	}
 	if strings.Contains(html, "Exit code:") {

@@ -11,6 +11,7 @@ How to use it:
 
 Requirements:
 - The source hostname must already be mapped and active in the current chekov configuration.
+- When using POST /api/aliases, sourceHostname and alias may omit the configured base domain. For example, sourceHostname=api and alias=api-public use api.local.dev-gutools.co.uk and api-public.local.dev-gutools.co.uk with the default base domain.
 - The alias must be a valid hostname and must not already be in use.
 - The generated nginx config must reload successfully before the alias becomes available.
 
