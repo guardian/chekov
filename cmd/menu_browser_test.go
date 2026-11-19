@@ -13,14 +13,14 @@ func TestExportMenuBrowserFixtures(t *testing.T) {
 	}
 
 	pages := map[string]string{
-		"home.html":                renderHomepageHTML(nil, 1, nil, ""),
-		"aws-config.html":          renderAWSConfigPage(AWSConfig{}, false),
-		"tunnels.html":             renderTunnelPage(AWSConfig{}, nil, nil),
-		"aliases.html":             renderAliasPage(nil, nil, nil),
-		"shell-launch.html":        renderShellLaunchPage(),
-		"remote-shell-launch.html": renderRemoteShellLaunchPage(),
-		"shell.html":               renderShellPage("", ""),
-		"remote-shell.html":        renderRemoteShellPage("", "", "", "", ""),
+		"home.html":                renderHomepageHTML("", nil, 1, nil, ""),
+		"aws-config.html":          renderAWSConfigPage("", AWSConfig{}, false),
+		"tunnels.html":             renderTunnelPage("", AWSConfig{}, nil, nil),
+		"aliases.html":             renderAliasPage("", nil, nil, nil),
+		"shell-launch.html":        renderShellLaunchPage(""),
+		"remote-shell-launch.html": renderRemoteShellLaunchPage(""),
+		"shell.html":               renderShellPage("", "", ""),
+		"remote-shell.html":        renderRemoteShellPage("", "", "", "", "", ""),
 	}
 	for name, content := range pages {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600); err != nil {

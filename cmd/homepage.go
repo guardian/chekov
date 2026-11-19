@@ -396,9 +396,9 @@ func renderHelpSection(page string) string {
 	return fmt.Sprintf("<div class=\"help-block\"><h3>How this page works</h3><pre>%s</pre></div>", html.EscapeString(text))
 }
 
-func renderHomepageHTML(rows []ContainerDiagnostic, revision uint64, endpointRows []PublishedEndpointRow, routingError string) string {
+func renderHomepageHTML(host string, rows []ContainerDiagnostic, revision uint64, endpointRows []PublishedEndpointRow, routingError string) string {
 	var b strings.Builder
-	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: Home</title>")
+	b.WriteString(renderPageHead(host, "Home"))
 	b.WriteString(renderMainStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head>")
@@ -471,6 +471,14 @@ func renderContainerCell(name, metadata string) string {
 	}
 	popup := strings.ReplaceAll(html.EscapeString(metadata), "; ", "<br>")
 	return fmt.Sprintf(`<span class="container-label" tabindex="0"><span class="container-name">%s</span><span class="container-popup">%s</span></span>`, nameEscaped, popup)
+}
+
+func renderPageHead(host, page string) string {
+	if host == "" {
+		host = "Chekov"
+	}
+	return `<!doctype html><html><head><meta charset="utf-8"><title>` +
+		html.EscapeString(host+": "+page) + `</title>`
 }
 
 func renderPageHeader(title string) string {
@@ -551,9 +559,9 @@ func renderFaviconLink() string {
 	return `<link rel="icon" type="image/png" href="/favicon.ico">`
 }
 
-func renderContainersHTML(names []string) string {
+func renderContainersHTML(host string, names []string) string {
 	var b strings.Builder
-	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: Containers</title>")
+	b.WriteString(renderPageHead(host, "Containers"))
 	b.WriteString(renderStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head><body data-page=\"containers\">")
@@ -834,9 +842,9 @@ func renderOpenInNewTabIcon() string {
 	return `<span class="new-tab-icon" aria-label="opens in new tab" title="opens in new tab">↗</span>`
 }
 
-func renderDebugPageHTML(rows []ContainerDiagnostic, revision uint64) string {
+func renderDebugPageHTML(host string, rows []ContainerDiagnostic, revision uint64) string {
 	var b strings.Builder
-	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: Debug</title>")
+	b.WriteString(renderPageHead(host, "Debug"))
 	b.WriteString(renderStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head>")

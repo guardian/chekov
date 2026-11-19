@@ -198,6 +198,7 @@ Chekov turns Docker and Dev Container metadata into a clean local HTTPS routing 
 ## Docs
 
 - Quick start: `docs/QUICK-START.md`
+- [Access Chekov inside a Docker-in-Docker Dev Container](docs/CHEKOV-IN-DEVCONTAINER.md)
 - Shell access: `docs/SHELLS.md`
 - Configuration: `docs/CONFIGURATION.md`
 - Architecture: `docs/ARCHITECTURE.md`
