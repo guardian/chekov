@@ -9,6 +9,26 @@ import (
 	"github.com/dev-tools/chekov/internal/nginx"
 )
 
+func TestHomepageAliasSurvivesRouteRebuild(t *testing.T) {
+	const baseDomain = "local.dev"
+	manager := NewAliasManager()
+	current := addHomepageAndAliasRoutes(nil, baseDomain, manager)
+	if _, err := manager.AddAlias("chekov", "inner-chekov", baseDomain, current); err != nil {
+		t.Fatal(err)
+	}
+
+	service := nginx.Route{Hostname: "api." + baseDomain, TargetHost: "api", TargetPort: 8080}
+	rebuilt := addHomepageAndAliasRoutes([]nginx.Route{service}, baseDomain, manager)
+	want := []nginx.Route{
+		service,
+		{Hostname: "chekov." + baseDomain, TargetHost: "127.0.0.1", TargetPort: 18080},
+		{Hostname: "inner-chekov." + baseDomain, TargetHost: "127.0.0.1", TargetPort: 18080},
+	}
+	if !reflect.DeepEqual(rebuilt, want) {
+		t.Fatalf("rebuilt routes = %+v, want %+v", rebuilt, want)
+	}
+}
+
 func TestAliasSourceAcceptsShortHostnames(t *testing.T) {
 	for _, baseDomain := range []string{"local.dev-gutools.co.uk", "custom.local.dev"} {
 		t.Run(baseDomain, func(t *testing.T) {

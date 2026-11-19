@@ -168,19 +168,10 @@ func reconcileRoutes(
 		routes = append(routes, tunnelManager.NginxRoutes(baseDomain)...)
 	}
 
-	if aliasManager != nil {
-		routes = aliasManager.MergeRoutes(routes)
-	}
+	routes = addHomepageAndAliasRoutes(routes, baseDomain, aliasManager)
 	routes = ensureRouteWildcardCerts(routes, baseDomain)
 
 	homepageState.Set(homepageRows)
-
-	// Always expose a stable homepage hostname for nginx config inspection.
-	routes = append(routes, nginx.Route{
-		Hostname:   "chekov." + baseDomain,
-		TargetHost: "127.0.0.1",
-		TargetPort: 18080,
-	})
 
 	// Generate and update config
 	if err := configGen.ApplyRoutes(routes); err != nil {
@@ -198,6 +189,18 @@ func reconcileRoutes(
 	}
 
 	log.Printf("Successfully updated routes with %d entries\n", len(routes))
+}
+
+func addHomepageAndAliasRoutes(routes []nginx.Route, baseDomain string, aliasManager *AliasManager) []nginx.Route {
+	routes = append(routes, nginx.Route{
+		Hostname:   "chekov." + baseDomain,
+		TargetHost: "127.0.0.1",
+		TargetPort: 18080,
+	})
+	if aliasManager != nil {
+		routes = aliasManager.MergeRoutes(routes)
+	}
+	return routes
 }
 
 func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath string, configGen *nginx.ConfigGenerator, homepageState *DiagnosticsState, tunnelManager *TunnelManager, aliasManager *AliasManager, baseDomain *string) {
