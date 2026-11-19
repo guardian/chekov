@@ -7,8 +7,9 @@ This setup gives you two URLs on your laptop:
 | `https://inner-chekov.local.dev-gutools.co.uk/` | The Chekov UI inside the Dev Container |
 | `https://inner-test.local.dev-gutools.co.uk/` | A demo API container running inside the Dev Container |
 
-Chekov uses the request hostname in its browser tab title, so you can tell
-the inner and outer UI tabs apart.
+Chekov uses the short request hostname in the page heading and browser tab
+title. The inner homepage says **Inner-Chekov: Home** and the outer homepage
+says **Chekov: Home**.
 
 Outer Chekov runs on your host's Docker daemon. Both outer aliases point to
 the **same Dev Container route on port 8080**. Inner Chekov runs on the

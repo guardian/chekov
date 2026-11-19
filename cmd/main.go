@@ -505,15 +505,20 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 					return
 				}
 				request = TunnelRequest{
-					Name:             r.FormValue("name"),
-					Profile:          r.FormValue("profile"),
-					Region:           r.FormValue("region"),
-					Stack:            r.FormValue("stack"),
-					Stage:            r.FormValue("stage"),
-					App:              r.FormValue("app"),
-					Alb:              r.FormValue("alb"),
-					UpstreamProtocol: func() string { if r.FormValue("https") == "on" { return "https" }; return "http" }(),
-					VerifySSL:        r.FormValue("verifySSL") == "on",
+					Name:    r.FormValue("name"),
+					Profile: r.FormValue("profile"),
+					Region:  r.FormValue("region"),
+					Stack:   r.FormValue("stack"),
+					Stage:   r.FormValue("stage"),
+					App:     r.FormValue("app"),
+					Alb:     r.FormValue("alb"),
+					UpstreamProtocol: func() string {
+						if r.FormValue("https") == "on" {
+							return "https"
+						}
+						return "http"
+					}(),
+					VerifySSL: r.FormValue("verifySSL") == "on",
 				}
 			}
 			if strings.TrimSpace(request.Profile) == "" {
@@ -837,7 +842,7 @@ func renderLogsPage(host, logText string) string {
 	b.WriteString(renderStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head><body>")
-	b.WriteString(renderPageHeader("Logs"))
+	b.WriteString(renderPageHeader(host, "Logs"))
 	b.WriteString("<div class=\"log-shell\"><pre>")
 	b.WriteString(html.EscapeString(logText))
 	b.WriteString("</pre></div>")

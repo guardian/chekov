@@ -124,14 +124,16 @@ func TestRenderHomepageHTMLUsesSharedStaticAssets(t *testing.T) {
 	}
 }
 
-func TestPageTitleReflectsRequestHost(t *testing.T) {
+func TestPageTitlesUseShortRequestHostname(t *testing.T) {
 	tests := []struct {
 		host string
 		want string
 	}{
-		{"chekov.local.dev-gutools.co.uk", "chekov.local.dev-gutools.co.uk"},
-		{"inner-chekov.local.dev-gutools.co.uk:8080", "inner-chekov.local.dev-gutools.co.uk:8080"},
-		{"chekov&inner", "chekov&amp;inner"},
+		{"chekov.local.dev-gutools.co.uk", "Chekov"},
+		{"INNER-CHEKOV.local.dev-gutools.co.uk.:8080", "Inner-Chekov"},
+		{"chekov&inner", "Chekov&amp;inner"},
+		{"127.0.0.1:8080", "127.0.0.1"},
+		{"[::1]:8080", "::1"},
 		{"", "Chekov"},
 	}
 	var manager TunnelManager
@@ -147,7 +149,18 @@ func TestPageTitleReflectsRequestHost(t *testing.T) {
 			if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), want) {
 				t.Fatalf("status = %d, want 200 and title %q", response.Code, want)
 			}
+			heading := `<h1><a href="/" class="page-header-link">` + tt.want + `</a>: Open Shell</h1>`
+			if !strings.Contains(response.Body.String(), heading) {
+				t.Errorf("response missing heading %q", heading)
+			}
 		})
+	}
+}
+
+func TestHomepageHeadingUsesShortHostname(t *testing.T) {
+	page := renderHomepageHTML("inner-chekov.local.dev-gutools.co.uk", nil, 1, nil, "")
+	if !strings.Contains(page, `<h1><a href="/" class="page-header-link">Inner-Chekov</a>: Home</h1>`) {
+		t.Fatal("homepage heading missing short instance name")
 	}
 }
 
@@ -247,7 +260,7 @@ func TestTunnelAPIRoutesMatchDedicatedHandlers(t *testing.T) {
 	mux.HandleFunc("/api/tunnels/", func(w http.ResponseWriter, r *http.Request) {})
 
 	cases := []struct {
-		path       string
+		path        string
 		wantPattern string
 	}{
 		{path: "/api/tunnels", wantPattern: "/api/tunnels"},
