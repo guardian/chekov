@@ -76,7 +76,7 @@ func TestAliasPageExcludesChekovMappedDomain(t *testing.T) {
 			serviceHostname := "xxx." + baseDomain
 			routes := []nginx.Route{{Hostname: chekovHostname}, {Hostname: serviceHostname}}
 			filtered := filterAliasHostnameRoutes(routes, chekovHostname)
-			page := renderAliasPage(routeHostnames(filtered), nil, nil)
+			page := renderAliasPage("", routeHostnames(filtered), nil, nil)
 			if strings.Contains(page, `<option value="`+chekovHostname+`"`) {
 				t.Fatal("Chekov appears in mapped domains")
 			}
@@ -86,7 +86,7 @@ func TestAliasPageExcludesChekovMappedDomain(t *testing.T) {
 			if len(routes) != 2 {
 				t.Fatal("filter changed original routes")
 			}
-			page = renderAliasPage(routeHostnames(filterAliasHostnameRoutes(routes[:1], chekovHostname)), nil, nil)
+			page = renderAliasPage("", routeHostnames(filterAliasHostnameRoutes(routes[:1], chekovHostname)), nil, nil)
 			if !strings.Contains(page, `<option value="">No mapped domains</option>`) {
 				t.Fatal("Chekov-only routes should show no mapped domains")
 			}
@@ -109,7 +109,7 @@ func TestAliasPageSuggestionsFollowSourceContainer(t *testing.T) {
 		suggestions[routes[0].Hostname][0] != "dotcom-rendering" {
 		t.Fatalf("unexpected route suggestions: %#v", suggestions)
 	}
-	page := renderAliasPage([]string{routes[0].Hostname, routes[1].Hostname, routes[2].Hostname}, nil, suggestions)
+	page := renderAliasPage("", []string{routes[0].Hostname, routes[1].Hostname, routes[2].Hostname}, nil, suggestions)
 	for _, expected := range []string{
 		`name="alias" id="alias-value" list="alias-suggestions-0"`,
 		`data-suggestions="alias-suggestions-1"`,
@@ -124,7 +124,7 @@ func TestAliasPageSuggestionsFollowSourceContainer(t *testing.T) {
 }
 
 func TestAliasPageEscapesSuggestions(t *testing.T) {
-	page := renderAliasPage([]string{"service.local.dev"}, nil, map[string][]string{
+	page := renderAliasPage("", []string{"service.local.dev"}, nil, map[string][]string{
 		"service.local.dev": {`"><script>alert(1)</script>`},
 	})
 	if strings.Contains(page, `<script>alert(1)</script>`) ||
@@ -147,7 +147,7 @@ func TestAliasPageUsesDiscoveredProjectSuggestion(t *testing.T) {
 		t.Fatalf("unexpected discovered routes: %#v", routes)
 	}
 	suggestions := aliasSuggestionsForRoutes(routes, []ContainerDiagnostic{diagnostic})
-	page := renderAliasPage(routeHostnames(routes), nil, suggestions)
+	page := renderAliasPage("", routeHostnames(routes), nil, suggestions)
 	if !strings.Contains(page, `<option value="dotcom-rendering"></option>`) {
 		t.Fatal("discovered project suggestion missing from alias page")
 	}

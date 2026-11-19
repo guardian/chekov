@@ -82,7 +82,7 @@ func TestTunnelDiagnosticsIncludesTunnelRows(t *testing.T) {
 }
 
 func TestRenderHomepageHTMLUsesSharedStaticAssets(t *testing.T) {
-	html := renderHomepageHTML([]ContainerDiagnostic{{
+	html := renderHomepageHTML("", []ContainerDiagnostic{{
 		Name:   "frontend",
 		Status: "routed",
 		Reason: "container",
@@ -124,18 +124,45 @@ func TestRenderHomepageHTMLUsesSharedStaticAssets(t *testing.T) {
 	}
 }
 
+func TestPageTitleReflectsRequestHost(t *testing.T) {
+	tests := []struct {
+		host string
+		want string
+	}{
+		{"chekov.local.dev-gutools.co.uk", "chekov.local.dev-gutools.co.uk"},
+		{"inner-chekov.local.dev-gutools.co.uk:8080", "inner-chekov.local.dev-gutools.co.uk:8080"},
+		{"chekov&inner", "chekov&amp;inner"},
+		{"", "Chekov"},
+	}
+	var manager TunnelManager
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "/shell-launch", nil)
+			request.Host = tt.host
+			request.Header.Set("X-Forwarded-Host", "other.local.dev")
+			response := httptest.NewRecorder()
+			manager.ShellLaunch(response, request)
+
+			want := "<title>" + tt.want + ": Open Shell</title>"
+			if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), want) {
+				t.Fatalf("status = %d, want 200 and title %q", response.Code, want)
+			}
+		})
+	}
+}
+
 func TestMainActionMenuAppearsOnMainPagesOnly(t *testing.T) {
 	pages := []struct {
 		name        string
 		html        string
 		currentPath string
 	}{
-		{name: "homepage", html: renderHomepageHTML(nil, 1, nil, "")},
-		{name: "AWS config", html: renderAWSConfigPage(AWSConfig{}, false), currentPath: "/aws-config"},
-		{name: "tunnels", html: renderTunnelPage(AWSConfig{}, nil, nil), currentPath: "/tunnels"},
-		{name: "aliases", html: renderAliasPage(nil, nil, nil), currentPath: "/aliases"},
-		{name: "local shell launch", html: renderShellLaunchPage(), currentPath: "/shell-launch"},
-		{name: "bastion shell launch", html: renderRemoteShellLaunchPage(), currentPath: "/remote-shell-launch"},
+		{name: "homepage", html: renderHomepageHTML("", nil, 1, nil, "")},
+		{name: "AWS config", html: renderAWSConfigPage("", AWSConfig{}, false), currentPath: "/aws-config"},
+		{name: "tunnels", html: renderTunnelPage("", AWSConfig{}, nil, nil), currentPath: "/tunnels"},
+		{name: "aliases", html: renderAliasPage("", nil, nil, nil), currentPath: "/aliases"},
+		{name: "local shell launch", html: renderShellLaunchPage(""), currentPath: "/shell-launch"},
+		{name: "bastion shell launch", html: renderRemoteShellLaunchPage(""), currentPath: "/remote-shell-launch"},
 	}
 
 	for _, page := range pages {
@@ -161,8 +188,8 @@ func TestMainActionMenuAppearsOnMainPagesOnly(t *testing.T) {
 		name string
 		html string
 	}{
-		{name: "local shell", html: renderShellPage("", "")},
-		{name: "bastion shell", html: renderRemoteShellPage("", "", "", "", "")},
+		{name: "local shell", html: renderShellPage("", "", "")},
+		{name: "bastion shell", html: renderRemoteShellPage("", "", "", "", "", "")},
 	}
 	for _, page := range terminalPages {
 		t.Run(page.name, func(t *testing.T) {
@@ -179,10 +206,10 @@ func TestMainActionMenuAppearsOnMainPagesOnly(t *testing.T) {
 		name string
 		html string
 	}{
-		{name: "debug", html: renderDebugPageHTML(nil, 1)},
-		{name: "containers", html: renderContainersHTML(nil)},
-		{name: "logs", html: renderLogsPage("")},
-		{name: "command generator", html: renderCommandGeneratorPage()},
+		{name: "debug", html: renderDebugPageHTML("", nil, 1)},
+		{name: "containers", html: renderContainersHTML("", nil)},
+		{name: "logs", html: renderLogsPage("", "")},
+		{name: "command generator", html: renderCommandGeneratorPage("")},
 	}
 	for _, page := range debugPages {
 		t.Run("debug pages/"+page.name, func(t *testing.T) {
@@ -266,7 +293,7 @@ func TestTunnelPageAcceptsFormPost(t *testing.T) {
 }
 
 func TestAWSConfigFormUsesPost(t *testing.T) {
-	html := renderAWSConfigPage(AWSConfig{BootstrapCommand: "aws configure set --profile frontend region us-east-1"}, false)
+	html := renderAWSConfigPage("", AWSConfig{BootstrapCommand: "aws configure set --profile frontend region us-east-1"}, false)
 	if !strings.Contains(html, `id="aws-form" method="post" action="/aws-config" hidden`) {
 		t.Fatalf("AWS config manual-entry form should be hidden initially: %s", html)
 	}
@@ -279,8 +306,8 @@ func TestAWSConfigFormUsesPost(t *testing.T) {
 	if !strings.Contains(html, `id="aws-save-status" class="aws-save-status" role="status" aria-live="polite" hidden`) {
 		t.Fatalf("AWS config page missing hidden save status: %s", html)
 	}
-	if !strings.Contains(renderAWSConfigPage(AWSConfig{}, true), "AWS credentials saved and validated successfully.") {
-		t.Fatalf("AWS config page missing saved confirmation: %s", renderAWSConfigPage(AWSConfig{}, true))
+	if !strings.Contains(renderAWSConfigPage("", AWSConfig{}, true), "AWS credentials saved and validated successfully.") {
+		t.Fatalf("AWS config page missing saved confirmation: %s", renderAWSConfigPage("", AWSConfig{}, true))
 	}
 	if strings.Contains(html, "Exit code:") {
 		t.Fatalf("AWS config page still displays an exit code: %s", html)
@@ -297,7 +324,7 @@ func TestAWSConfigFormUsesPost(t *testing.T) {
 }
 
 func TestRenderShellPageUsesEscapedTerminalNewlines(t *testing.T) {
-	html := renderShellPage("frontend", "eu-west-1")
+	html := renderShellPage("", "frontend", "eu-west-1")
 	if !strings.Contains(html, "term.write('\\r\\n');") {
 		t.Fatalf("shell page missing escaped CRLF terminal writing: %s", html)
 	}

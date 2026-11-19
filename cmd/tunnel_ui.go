@@ -6,9 +6,9 @@ import (
 	"strings"
 )
 
-func renderAWSConfigPage(cfg AWSConfig, saved bool) string {
+func renderAWSConfigPage(host string, cfg AWSConfig, saved bool) string {
 	var b strings.Builder
-	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: AWS Config</title>")
+	b.WriteString(renderPageHead(host, "AWS Config"))
 	b.WriteString(renderMainStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head><body data-page=\"aws-config\">")
@@ -35,9 +35,9 @@ func renderAWSConfigPage(cfg AWSConfig, saved bool) string {
 	return b.String()
 }
 
-func renderTunnelPage(cfg AWSConfig, tunnels []TunnelEntry, mappedHostnames []string) string {
+func renderTunnelPage(host string, cfg AWSConfig, tunnels []TunnelEntry, mappedHostnames []string) string {
 	var b strings.Builder
-	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: Tunnels</title>")
+	b.WriteString(renderPageHead(host, "Tunnels"))
 	b.WriteString(renderMainStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head><body data-page=\"tunnel-page\">")
@@ -95,9 +95,9 @@ func renderTunnelPage(cfg AWSConfig, tunnels []TunnelEntry, mappedHostnames []st
 	return b.String()
 }
 
-func renderAliasPage(mappedHostnames []string, aliases []AliasEntry, suggestions map[string][]string) string {
+func renderAliasPage(host string, mappedHostnames []string, aliases []AliasEntry, suggestions map[string][]string) string {
 	var b strings.Builder
-	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: Aliases</title>")
+	b.WriteString(renderPageHead(host, "Aliases"))
 	b.WriteString(renderMainStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head><body data-page=\"alias-page\">")
@@ -147,9 +147,9 @@ func renderAliasPage(mappedHostnames []string, aliases []AliasEntry, suggestions
 	return b.String()
 }
 
-func renderCommandGeneratorPage() string {
+func renderCommandGeneratorPage(host string) string {
 	var b strings.Builder
-	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: Command Generator</title>")
+	b.WriteString(renderPageHead(host, "Command Generator"))
 	b.WriteString(renderStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head><body data-page=\"command-generator\">")
@@ -181,14 +181,14 @@ func renderCommandGeneratorPage() string {
 	return b.String()
 }
 
-func renderRemoteShellPage(profile, region, stack, stage, app string) string {
+func renderRemoteShellPage(host, profile, region, stack, stage, app string) string {
 	profile = html.EscapeString(profile)
 	region = html.EscapeString(region)
 	stack = html.EscapeString(stack)
 	stage = html.EscapeString(stage)
 	app = html.EscapeString(app)
 	var b strings.Builder
-	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: Remote Bastion Shell</title>")
+	b.WriteString(renderPageHead(host, "Remote Bastion Shell"))
 	b.WriteString("<link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css\" />")
 	b.WriteString(renderStylesheetLink())
 	b.WriteString(renderFaviconLink())
@@ -225,9 +225,9 @@ func renderRemoteShellPage(profile, region, stack, stage, app string) string {
 	return b.String()
 }
 
-func renderRemoteShellLaunchPage() string {
+func renderRemoteShellLaunchPage(host string) string {
 	var b strings.Builder
-	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: Open Remote Bastion Shell</title>")
+	b.WriteString(renderPageHead(host, "Open Remote Bastion Shell"))
 	b.WriteString(renderMainStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head><body data-page=\"remote-shell-launch\">")
@@ -248,11 +248,11 @@ func renderRemoteShellLaunchPage() string {
 	return b.String()
 }
 
-func renderShellPage(profile, region string) string {
+func renderShellPage(host, profile, region string) string {
 	profile = html.EscapeString(profile)
 	region = html.EscapeString(region)
 	var b strings.Builder
-	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: Local Container Shell</title>")
+	b.WriteString(renderPageHead(host, "Local Container Shell"))
 	b.WriteString("<link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css\" />")
 	b.WriteString(renderStylesheetLink())
 	b.WriteString(renderFaviconLink())
@@ -394,9 +394,9 @@ func renderRegionSelect(name, value string) string {
 	return renderRegionField(name, value)
 }
 
-func renderShellLaunchPage() string {
+func renderShellLaunchPage(host string) string {
 	var b strings.Builder
-	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: Open Shell</title>")
+	b.WriteString(renderPageHead(host, "Open Shell"))
 	b.WriteString(renderMainStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head><body data-page=\"shell-launch\">")

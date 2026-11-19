@@ -123,7 +123,7 @@ func TestConnectivityAliasesAndInactiveTunnels(t *testing.T) {
 }
 
 func TestRenderHomepageConnectivity(t *testing.T) {
-	page := renderHomepageHTML(nil, 1, []PublishedEndpointRow{{
+	page := renderHomepageHTML("", nil, 1, []PublishedEndpointRow{{
 		Hostname: "app.local.dev",
 		Connectivity: ConnectivityResult{
 			Summary: "Connection refused", Detail: "<error>", CheckedAt: time.Now(),
@@ -138,7 +138,7 @@ func TestRenderHomepageConnectivity(t *testing.T) {
 			t.Fatalf("page missing %q", want)
 		}
 	}
-	empty := renderHomepageHTML(nil, 1, nil, "")
+	empty := renderHomepageHTML("", nil, 1, nil, "")
 	if !strings.Contains(empty, `colspan="3"`) || !strings.Contains(empty, `role="alert" hidden`) {
 		t.Fatal("empty table or hidden error banner incorrect")
 	}

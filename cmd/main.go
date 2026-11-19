@@ -329,7 +329,7 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		routes := filterAliasHostnameRoutes(configGen.CurrentRoutes(), "chekov."+*baseDomain)
 		suggestions := aliasSuggestionsForRoutes(routes, homepageState.Snapshot())
-		_, _ = w.Write([]byte(renderAliasPage(routeHostnames(routes), aliasManager.Snapshot(), suggestions)))
+		_, _ = w.Write([]byte(renderAliasPage(r.Host, routeHostnames(routes), aliasManager.Snapshot(), suggestions)))
 	})
 
 	homepageSnapshot := func() ([]ContainerDiagnostic, []PublishedEndpointRow, uint64) {
@@ -356,7 +356,7 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 		for i := range endpointRows {
 			endpointRows[i].Connectivity = results[endpointRows[i].Hostname]
 		}
-		_, _ = w.Write([]byte(renderHomepageHTML(rows, revision, endpointRows, configGen.RoutingError())))
+		_, _ = w.Write([]byte(renderHomepageHTML(r.Host, rows, revision, endpointRows, configGen.RoutingError())))
 	})
 
 	mux.HandleFunc("/homepage/connectivity", func(w http.ResponseWriter, r *http.Request) {
@@ -402,7 +402,7 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 		}
 		sort.Strings(names)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(renderContainersHTML(names)))
+		_, _ = w.Write([]byte(renderContainersHTML(r.Host, names)))
 	})
 
 	mux.HandleFunc("/debug", func(w http.ResponseWriter, r *http.Request) {
@@ -417,7 +417,7 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 		rows := homepageState.Snapshot()
 		rows = append(rows, tunnelDiagnostics(tunnelManager, *baseDomain)...)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(renderDebugPageHTML(rows, homepageState.Revision())))
+		_, _ = w.Write([]byte(renderDebugPageHTML(r.Host, rows, homepageState.Revision())))
 	})
 
 	mux.HandleFunc("/container/", func(w http.ResponseWriter, r *http.Request) {
@@ -438,7 +438,7 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 	mux.HandleFunc("/aws-config", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			_, _ = w.Write([]byte(renderAWSConfigPage(tunnelManager.AWSConfigSnapshot(), r.URL.Query().Get("saved") == "1")))
+			_, _ = w.Write([]byte(renderAWSConfigPage(r.Host, tunnelManager.AWSConfigSnapshot(), r.URL.Query().Get("saved") == "1")))
 			return
 		}
 		if r.Method == http.MethodPost {
@@ -490,7 +490,7 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 		switch r.Method {
 		case http.MethodGet:
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			_, _ = w.Write([]byte(renderTunnelPage(tunnelManager.AWSConfigSnapshot(), tunnelManager.Snapshot(), routeHostnames(configGen.CurrentRoutes()))))
+			_, _ = w.Write([]byte(renderTunnelPage(r.Host, tunnelManager.AWSConfigSnapshot(), tunnelManager.Snapshot(), routeHostnames(configGen.CurrentRoutes()))))
 		case http.MethodPost:
 			defer r.Body.Close()
 			var request TunnelRequest
@@ -666,7 +666,7 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 		}
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(renderLogsPage(out)))
+		_, _ = w.Write([]byte(renderLogsPage(r.Host, out)))
 	})
 
 	mux.HandleFunc("/command-generator", func(w http.ResponseWriter, r *http.Request) {
@@ -675,7 +675,7 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(renderCommandGeneratorPage()))
+		_, _ = w.Write([]byte(renderCommandGeneratorPage(r.Host)))
 	})
 
 	mux.HandleFunc("/shell-command-generator", func(w http.ResponseWriter, r *http.Request) {
@@ -684,7 +684,7 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(renderCommandGeneratorPage()))
+		_, _ = w.Write([]byte(renderCommandGeneratorPage(r.Host)))
 	})
 
 	staticFileServer := http.FileServer(http.Dir(staticDir))
@@ -828,12 +828,12 @@ func (tunnelManager *TunnelManager) Logs(w http.ResponseWriter, r *http.Request)
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write([]byte(renderLogsPage(out)))
+	_, _ = w.Write([]byte(renderLogsPage(r.Host, out)))
 }
 
-func renderLogsPage(logText string) string {
+func renderLogsPage(host, logText string) string {
 	var b strings.Builder
-	b.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Chekov: Logs</title>")
+	b.WriteString(renderPageHead(host, "Logs"))
 	b.WriteString(renderStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head><body>")
@@ -887,11 +887,11 @@ func (tunnelManager *TunnelManager) Shell(w http.ResponseWriter, r *http.Request
 	region := strings.TrimSpace(r.URL.Query().Get("region"))
 	if profile == "" || region == "" {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(renderShellLaunchPage()))
+		_, _ = w.Write([]byte(renderShellLaunchPage(r.Host)))
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write([]byte(renderShellPage(profile, region)))
+	_, _ = w.Write([]byte(renderShellPage(r.Host, profile, region)))
 }
 
 func (tunnelManager *TunnelManager) ShellLaunch(w http.ResponseWriter, r *http.Request) {
@@ -900,7 +900,7 @@ func (tunnelManager *TunnelManager) ShellLaunch(w http.ResponseWriter, r *http.R
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write([]byte(renderShellLaunchPage()))
+	_, _ = w.Write([]byte(renderShellLaunchPage(r.Host)))
 }
 
 func (tunnelManager *TunnelManager) ShellWS(w http.ResponseWriter, r *http.Request) {
@@ -1041,11 +1041,11 @@ func (tunnelManager *TunnelManager) RemoteShell(w http.ResponseWriter, r *http.R
 	app := strings.TrimSpace(r.URL.Query().Get("app"))
 	if profile == "" || region == "" || stack == "" || stage == "" || app == "" {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(renderRemoteShellLaunchPage()))
+		_, _ = w.Write([]byte(renderRemoteShellLaunchPage(r.Host)))
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write([]byte(renderRemoteShellPage(profile, region, stack, stage, app)))
+	_, _ = w.Write([]byte(renderRemoteShellPage(r.Host, profile, region, stack, stage, app)))
 }
 
 func (tunnelManager *TunnelManager) RemoteShellLaunch(w http.ResponseWriter, r *http.Request) {
@@ -1054,7 +1054,7 @@ func (tunnelManager *TunnelManager) RemoteShellLaunch(w http.ResponseWriter, r *
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write([]byte(renderRemoteShellLaunchPage()))
+	_, _ = w.Write([]byte(renderRemoteShellLaunchPage(r.Host)))
 }
 
 func (tunnelManager *TunnelManager) RemoteShellWS(w http.ResponseWriter, r *http.Request) {
