@@ -6,7 +6,7 @@ How to use it:
 - Follow Endpoint links to open a service; Service describes its source.
 - Connectivity shows background checks from inside Chekov to each backend, refreshed every 15 seconds with a three-second timeout.
 - Responding (including HTTP 401, 404 or 500) means the backend answered, not that the application is healthy.
-- Hover over Connectivity for error details and the last-check time. Aliases with the same backend and TLS policy share checks.
+- Hover over Connectivity for error details and the last-check time. Each hostname is checked separately, even when aliases share a backend.
 - Stopped tunnels are not probed or started automatically. Enter credentials and start them explicitly.
 - Routing configuration errors appear separately above the table. Connectivity checks do not test the browser-to-Nginx connection.
 - Use the Debug page for discovery metadata and skipped routes.

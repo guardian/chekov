@@ -92,7 +92,15 @@ func TestConnectivityAliasesAndInactiveTunnels(t *testing.T) {
 	var calls atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
-		w.WriteHeader(http.StatusOK)
+		switch r.Host {
+		case "app.local.dev":
+			w.WriteHeader(http.StatusServiceUnavailable)
+		case "alias.local.dev":
+			w.WriteHeader(http.StatusOK)
+		default:
+			t.Errorf("unexpected probe for %q", r.Host)
+			w.WriteHeader(http.StatusBadRequest)
+		}
 	}))
 	defer server.Close()
 	route := testConnectivityRoute(t, server.URL)
@@ -110,14 +118,15 @@ func TestConnectivityAliasesAndInactiveTunnels(t *testing.T) {
 	}
 	monitor.check(context.Background(), routes, manager)
 	results := monitor.snapshot(routes, manager)
-	if calls.Load() != 1 || results[route.Hostname] != results[alias.Hostname] {
-		t.Fatalf("aliases did not share one check: calls=%d results=%#v", calls.Load(), results)
+	if calls.Load() != 2 || results[route.Hostname].Summary != "Responding - HTTP 503" ||
+		results[alias.Hostname].Summary != "Responding - HTTP 200" {
+		t.Fatalf("expected separate results per hostname: calls=%d results=%#v", calls.Load(), results)
 	}
 	if results[stopped.Hostname].Summary != "Tunnel stopped" {
 		t.Fatalf("unexpected stopped result: %#v", results[stopped.Hostname])
 	}
 	monitor.check(context.Background(), []nginx.Route{stopped}, manager)
-	if calls.Load() != 1 || len(monitor.results) != 0 {
+	if calls.Load() != 2 || len(monitor.results) != 0 {
 		t.Fatal("inactive tunnel was probed or removed routes retained")
 	}
 }
