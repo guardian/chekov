@@ -5,12 +5,15 @@ import (
 	"hash/fnv"
 	"html"
 	"log"
+	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
 	"sync"
+	"unicode"
 
 	"github.com/dev-tools/chekov/internal/discovery"
 	"github.com/dev-tools/chekov/internal/nginx"
@@ -403,7 +406,7 @@ func renderHomepageHTML(host string, rows []ContainerDiagnostic, revision uint64
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head>")
 	b.WriteString(fmt.Sprintf("<body data-page=\"homepage\" data-current-revision=\"%d\">", revision))
-	b.WriteString(renderMainPageHeader("Home", ""))
+	b.WriteString(renderMainPageHeader(host, "Home", ""))
 	b.WriteString("<p id=\"routing-error\" role=\"alert\"")
 	if routingError == "" {
 		b.WriteString(" hidden")
@@ -473,21 +476,44 @@ func renderContainerCell(name, metadata string) string {
 	return fmt.Sprintf(`<span class="container-label" tabindex="0"><span class="container-name">%s</span><span class="container-popup">%s</span></span>`, nameEscaped, popup)
 }
 
-func renderPageHead(host, page string) string {
-	if host == "" {
-		host = "Chekov"
+func instanceLabel(host string) string {
+	if hostname, _, err := net.SplitHostPort(host); err == nil {
+		host = hostname
 	}
+	host = strings.TrimSuffix(host, ".")
+	if addr, err := netip.ParseAddr(strings.TrimSuffix(strings.TrimPrefix(host, "["), "]")); err == nil {
+		return addr.String()
+	}
+	host, _, _ = strings.Cut(host, ".")
+	if host == "" {
+		return "Chekov"
+	}
+	start := true
+	return strings.Map(func(r rune) rune {
+		if r == '-' {
+			start = true
+			return r
+		}
+		if start {
+			start = false
+			return unicode.ToUpper(r)
+		}
+		return unicode.ToLower(r)
+	}, host)
+}
+
+func renderPageHead(host, page string) string {
 	return `<!doctype html><html><head><meta charset="utf-8"><title>` +
-		html.EscapeString(host+": "+page) + `</title>`
+		html.EscapeString(instanceLabel(host)+": "+page) + `</title>`
 }
 
-func renderPageHeader(title string) string {
-	return fmt.Sprintf(`<div class="page-header"><div class="page-header-copy"><h1><a href="/" class="page-header-link">%s</a>: %s</h1><p class="page-tagline">"Excuse me. We are looking for nuclear wessels."</p></div><a href="/" class="site-icon-link" aria-label="Home"><img src="/static/icon.png" alt="Chekov home" width="32" height="32"></a></div>`, html.EscapeString("Chekov"), html.EscapeString(title))
+func renderPageHeader(host, title string) string {
+	return fmt.Sprintf(`<div class="page-header"><div class="page-header-copy"><h1><a href="/" class="page-header-link">%s</a>: %s</h1><p class="page-tagline">"Excuse me. We are looking for nuclear wessels."</p></div><a href="/" class="site-icon-link" aria-label="Home"><img src="/static/icon.png" alt="Chekov home" width="32" height="32"></a></div>`, html.EscapeString(instanceLabel(host)), html.EscapeString(title))
 }
 
-func renderMainPageHeader(title, currentPath string) string {
+func renderMainPageHeader(host, title, currentPath string) string {
 	var b strings.Builder
-	b.WriteString(renderPageHeader(title))
+	b.WriteString(renderPageHeader(host, title))
 	b.WriteString(`<nav class="main-action-menu" aria-label="Main actions">`)
 	link := func(path, content string) {
 		b.WriteString(`<a class="main-action" href="` + html.EscapeString(path) + `"`)
@@ -565,7 +591,7 @@ func renderContainersHTML(host string, names []string) string {
 	b.WriteString(renderStylesheetLink())
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head><body data-page=\"containers\">")
-	b.WriteString(renderPageHeader("Containers"))
+	b.WriteString(renderPageHeader(host, "Containers"))
 	if len(names) == 0 {
 		b.WriteString("<p>No containers with active routes.</p>")
 	} else {
@@ -849,7 +875,7 @@ func renderDebugPageHTML(host string, rows []ContainerDiagnostic, revision uint6
 	b.WriteString(renderFaviconLink())
 	b.WriteString("</head>")
 	b.WriteString(fmt.Sprintf("<body data-page=\"debug\" data-current-revision=\"%d\">", revision))
-	b.WriteString(renderPageHeader("Debug"))
+	b.WriteString(renderPageHeader(host, "Debug"))
 	b.WriteString("<table><thead><tr><th>Process</th><th>Status</th><th>Reason</th><th>Routes</th></tr></thead><tbody>")
 
 	if len(rows) == 0 {
