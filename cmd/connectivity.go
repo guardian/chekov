@@ -25,9 +25,9 @@ type ConnectivityResult struct {
 }
 
 type connectivityKey struct {
-	Host, Protocol, VerifyName string
-	Port                       int
-	VerifySSL                  bool
+	Host, RequestHost, Protocol, VerifyName string
+	Port                                    int
+	VerifySSL                               bool
 }
 
 func routeConnectivityKey(route nginx.Route) connectivityKey {
@@ -39,7 +39,14 @@ func routeConnectivityKey(route nginx.Route) connectivityKey {
 	if protocol == "https" && verifyName == "" {
 		verifyName = route.Hostname
 	}
-	return connectivityKey{route.TargetHost, protocol, verifyName, route.TargetPort, route.VerifySSL}
+	return connectivityKey{
+		Host:        route.TargetHost,
+		RequestHost: route.Hostname,
+		Protocol:    protocol,
+		VerifyName:  verifyName,
+		Port:        route.TargetPort,
+		VerifySSL:   route.VerifySSL,
+	}
 }
 
 type ConnectivityMonitor struct {
@@ -155,7 +162,7 @@ func probeConnectivity(ctx context.Context, route nginx.Route) ConnectivityResul
 	if err != nil {
 		return ConnectivityResult{Summary: "Check failed", Detail: err.Error(), CheckedAt: time.Now()}
 	}
-	request.Host = route.Hostname
+	request.Host = key.RequestHost
 	response, err := client.Do(request)
 	result := ConnectivityResult{CheckedAt: time.Now()}
 	if err == nil {
