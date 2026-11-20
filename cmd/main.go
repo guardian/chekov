@@ -74,11 +74,6 @@ func main() {
 	homepageState := &DiagnosticsState{}
 	tunnelManager := NewTunnelManager()
 	aliasManager := NewAliasManager()
-	aliasManager.configured, err = parseConfiguredAliases(os.Getenv("CHEKOV_ALIASES"), *baseDomain)
-	if err != nil {
-		log.Fatalf("Invalid CHEKOV_ALIASES: %v", err)
-	}
-	tunnelManager.aliasManager = aliasManager
 	tunnelManager.BindConfig(*baseDomain, configGen)
 	peerPath := os.Getenv("CHEKOV_PEER_STATE_FILE")
 	if peerPath == "" {
@@ -151,6 +146,8 @@ func reconcileRoutes(
 				Status:   "skipped",
 				Reason:   "proxy container",
 				Metadata: summarizeContainerMetadata(containerInfo),
+				LabeledAliases: aliasesFromLabels(containerInfo.Name, containerInfo.Labels,
+					[]labelAliasTarget{{route: homepageRoute(baseDomain), ports: []int{80, 443}}}, baseDomain),
 			})
 			continue
 		}
@@ -187,14 +184,17 @@ func reconcileRoutes(
 	log.Printf("Successfully updated routes with %d entries\n", len(routes))
 }
 
-func addHomepageAndAliasRoutes(routes []nginx.Route, baseDomain string, aliasManager *AliasManager, rows []ContainerDiagnostic) []nginx.Route {
-	routes = append(routes, nginx.Route{
+func homepageRoute(baseDomain string) nginx.Route {
+	return nginx.Route{
 		Hostname:   "chekov." + baseDomain,
 		TargetHost: "127.0.0.1",
 		TargetPort: 18080,
-	})
+	}
+}
+
+func addHomepageAndAliasRoutes(routes []nginx.Route, baseDomain string, aliasManager *AliasManager, rows []ContainerDiagnostic) []nginx.Route {
+	routes = append(routes, homepageRoute(baseDomain))
 	if aliasManager != nil {
-		routes = aliasManager.mergeConfiguredAliases(routes)
 		routes = aliasManager.mergeAllAliases(routes, rows, baseDomain)
 	}
 	return routes

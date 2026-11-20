@@ -398,7 +398,7 @@ func (p *peerAliases) decorate(routes []nginx.Route) []nginx.Route {
 	for _, route := range out {
 		occupied[strings.ToLower(route.Hostname)] = true
 	}
-	for _, item := range append(p.aliases.Snapshot(), p.aliases.configured...) {
+	for _, item := range p.aliases.Snapshot() {
 		occupied[item.AliasHostname] = true
 	}
 	claims := make(map[string][]nginx.Route)
@@ -432,7 +432,7 @@ func (p *peerAliases) decorate(routes []nginx.Route) []nginx.Route {
 		}
 		route.Hostname = name
 		route.CertPath, route.KeyPath = "", ""
-		route.AutoAliasSource, route.ConfiguredAlias = "", false
+		route.AutoAliasSource = ""
 		imported = append(imported, route)
 	}
 	if len(imported) > 0 {

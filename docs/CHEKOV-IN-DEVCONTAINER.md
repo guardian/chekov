@@ -60,12 +60,12 @@ Dev Container's port `8080` to the host or enable IDE port forwarding.
 ## 3. Start inner Chekov
 
 Run this **inside the Dev Container**, where `docker ps` should show the inner
-daemon's containers, not the host's. Use an image that supports `CHEKOV_ALIASES`.
+daemon's containers, not the host's. Use an image that supports Docker alias labels.
 
 ```bash
 docker run -d --name inner-chekov \
   -p 8080:80 \
-  -e CHEKOV_ALIASES='inner-chekov=chekov' \
+  --label chekov.aliases=inner-chekov \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \
   ghcr.io/guardian/chekov/nginx:latest
 ```
@@ -83,7 +83,7 @@ not change that hostname.
 
 ## 4. Check the alias on inner Chekov
 
-`CHEKOV_ALIASES` tells inner Chekov to serve its UI at `inner-chekov` on
+The `chekov.aliases` label tells inner Chekov to serve its UI at `inner-chekov` on
 every restart. To check it before involving outer Chekov, run this inside
 the Dev Container:
 
@@ -125,4 +125,4 @@ after a Chekov restart.
 To skip manually adding service aliases on outer Chekov, check **Fetch aliases**
 on the outer route that targets the Dev Container's port `8080`. Inner Chekov
 exports its local service hostnames automatically. The inner UI alias is still
-configured separately with `CHEKOV_ALIASES`.
+configured separately with the `chekov.aliases` label.

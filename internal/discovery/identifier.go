@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -382,7 +383,7 @@ func (i *Identifier) ExtractRouteTargets(
 				for _, hostPort := range publishedHostPorts {
 					out = append(out, RouteTarget{
 						ProjectName:     fmt.Sprintf("%d.%s", hostPort, projectName),
-						ApplicationPort: hostPort,
+						ApplicationPort: applicationPortForBinding(hostPort, publishedPorts),
 					})
 				}
 				log.Printf("Using %d published host-port routes for %s: %v\n", len(out), containerName, out)
@@ -459,7 +460,7 @@ func (i *Identifier) ExtractPlainContainerRouteTargets(
 		for _, hostPort := range publishedHostPorts {
 			out = append(out, RouteTarget{
 				ProjectName:     fmt.Sprintf("%d.%s", hostPort, baseName),
-				ApplicationPort: hostPort,
+				ApplicationPort: applicationPortForBinding(hostPort, publishedPorts),
 			})
 		}
 		return out
@@ -552,6 +553,33 @@ func collectPublishedHostPorts(publishedPorts map[string][]PortBinding) []int {
 	}
 	sort.Ints(out)
 	return out
+}
+
+func applicationPortForBinding(hostPort int, published map[string][]PortBinding) int {
+	if ports := ContainerPortsForHostPort(published, hostPort); len(ports) == 1 {
+		return ports[0]
+	}
+	return hostPort
+}
+
+// ContainerPortsForHostPort returns the distinct TCP container ports using a published port.
+func ContainerPortsForHostPort(published map[string][]PortBinding, hostPort int) []int {
+	seen := make(map[int]bool)
+	var ports []int
+	for key, bindings := range published {
+		port := parsePortKey(key)
+		if port <= 0 || seen[port] || strings.HasSuffix(key, "/udp") {
+			continue
+		}
+		for _, binding := range bindings {
+			if binding.HostPort == strconv.Itoa(hostPort) {
+				seen[port] = true
+				ports = append(ports, port)
+				break
+			}
+		}
+	}
+	return ports
 }
 
 func parsePortKey(key string) int {

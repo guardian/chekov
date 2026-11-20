@@ -37,7 +37,6 @@ func NewConfigGenerator(configPath, certPath, keyPath string) *ConfigGenerator {
 // Route represents a route to be proxied.
 type Route struct {
 	ImportedFrom    string
-	ConfiguredAlias bool
 	AutoAliasSource string
 	ContainerName   string
 	Hostname        string

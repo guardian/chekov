@@ -118,13 +118,12 @@ type TunnelEntry struct {
 }
 
 type TunnelManager struct {
-	mu           sync.Mutex
-	config       AWSConfig
-	tunnels      map[string]*TunnelEntry
-	process      map[string]*exec.Cmd
-	configGen    *nginx.ConfigGenerator
-	baseDomain   string
-	aliasManager *AliasManager
+	mu         sync.Mutex
+	config     AWSConfig
+	tunnels    map[string]*TunnelEntry
+	process    map[string]*exec.Cmd
+	configGen  *nginx.ConfigGenerator
+	baseDomain string
 }
 
 func NewTunnelManager() *TunnelManager {
@@ -303,9 +302,6 @@ func (tm *TunnelManager) EnsureConfig(baseDomain string, configGen *nginx.Config
 		seen[route.Hostname] = len(merged) - 1
 	}
 
-	if tm.aliasManager != nil {
-		merged = tm.aliasManager.mergeConfiguredAliases(merged)
-	}
 	merged = ensureRouteWildcardCerts(merged, baseDomain)
 
 	if err := configGen.ApplyRoutes(merged); err != nil {

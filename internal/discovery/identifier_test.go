@@ -193,8 +193,8 @@ func TestExtractPlainContainerFallbackRoutes(t *testing.T) {
 		}
 		got := id.ExtractRouteTargets("hello-world", nil, []int{80}, published)
 		want := []RouteTarget{
-			{ProjectName: "8081.hello-world", ApplicationPort: 8081},
-			{ProjectName: "8082.hello-world", ApplicationPort: 8082},
+			{ProjectName: "8081.hello-world", ApplicationPort: 80},
+			{ProjectName: "8082.hello-world", ApplicationPort: 80},
 		}
 		if !reflect.DeepEqual(got, want) {
 			t.Fatalf("ExtractRouteTargets() = %#v, want %#v", got, want)

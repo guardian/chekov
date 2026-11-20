@@ -138,8 +138,6 @@ func renderAliasPage(host string, mappedHostnames []string, aliases []AliasEntry
 			b.WriteString("<td>" + html.EscapeString(alias.AliasHostname) + "</td>")
 			if alias.Imported {
 				b.WriteString("<td>Imported</td>")
-			} else if alias.Configured {
-				b.WriteString("<td>Configured</td>")
 			} else if alias.Automatic {
 				b.WriteString("<td>Automatic</td>")
 			} else {

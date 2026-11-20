@@ -22,9 +22,9 @@ func TestPeerExportSharesLocalServiceRoutesByDefault(t *testing.T) {
 	config := nginx.NewConfigGenerator(filepath.Join(dir, "generated.conf"), "", "")
 	routes := []nginx.Route{
 		{Hostname: "api.local.dev", ContainerName: "api", TargetHost: "api", TargetPort: 8080},
-		{Hostname: "api-alias.local.dev", ContainerName: "api", TargetHost: "api", TargetPort: 8080, ConfiguredAlias: true},
+		{Hostname: "api-alias.local.dev", ContainerName: "api", TargetHost: "api", TargetPort: 8080, AutoAliasSource: "api.local.dev"},
 		{Hostname: "chekov.local.dev", TargetHost: "127.0.0.1", TargetPort: 18080},
-		{Hostname: "inner-chekov.local.dev", TargetHost: "127.0.0.1", TargetPort: 18080, ConfiguredAlias: true},
+		{Hostname: "inner-chekov.local.dev", TargetHost: "127.0.0.1", TargetPort: 18080, AutoAliasSource: "chekov.local.dev"},
 		{Hostname: "tunnel.local.dev", ContainerName: "aws-tunnel-1", TargetHost: "127.0.0.1", TargetPort: 8888},
 		{Hostname: "imported.local.dev", ImportedFrom: "peer.local.dev", ContainerName: "peer", TargetHost: "peer", TargetPort: 8080},
 	}

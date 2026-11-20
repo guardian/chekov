@@ -29,61 +29,6 @@ func TestHomepageAliasSurvivesRouteRebuild(t *testing.T) {
 	}
 }
 
-func TestConfiguredAliasParsing(t *testing.T) {
-	const base = "local.dev"
-	got, err := parseConfiguredAliases(" inner-chekov = chekov , public.local.dev=api ", base)
-	want := []AliasEntry{
-		{Configured: true, AliasHostname: "inner-chekov.local.dev", SourceHostname: "chekov.local.dev"},
-		{Configured: true, AliasHostname: "public.local.dev", SourceHostname: "api.local.dev"},
-	}
-	if err != nil || !reflect.DeepEqual(got, want) {
-		t.Fatalf("got %+v, %v; want %+v", got, err, want)
-	}
-	for _, invalid := range []string{"alias", "a=", "=b", "a=b=c", "a=a.local.dev", "a=b,A.local.dev=c"} {
-		if _, err := parseConfiguredAliases(invalid, base); err == nil {
-			t.Errorf("accepted invalid configuration %q", invalid)
-		}
-	}
-}
-
-func TestConfiguredAliasesFollowRoutes(t *testing.T) {
-	const base = "local.dev"
-	const inner = "inner-chekov." + base
-	const public = "public." + base
-	configured, err := parseConfiguredAliases("inner-chekov=chekov,public=api", base)
-	if err != nil {
-		t.Fatal(err)
-	}
-	manager := NewAliasManager()
-	manager.configured = configured
-	other := nginx.Route{Hostname: "other." + base, ContainerName: "dev", TargetPort: 8080}
-	rows := []ContainerDiagnostic{{Name: "dev", DevContainerNames: []string{"public"}}}
-	initial := addHomepageAndAliasRoutes([]nginx.Route{other}, base, manager, rows)
-	if got := findRouteByHostname(initial, inner); got == nil || !got.ConfiguredAlias || got.TargetPort != 18080 {
-		t.Fatalf("inner homepage alias missing: %+v", initial)
-	}
-	if findRouteByHostname(initial, public) != nil {
-		t.Fatal("configured alias with missing source should reserve its name without publishing a route")
-	}
-	if _, err := manager.AddAlias(other.Hostname, "public", base, initial); err == nil || manager.RemoveAlias(inner) {
-		t.Fatal("configured aliases should not be editable through the manual API")
-	}
-	api := nginx.Route{Hostname: "api." + base, TargetPort: 3000}
-	rebuilt := addHomepageAndAliasRoutes([]nginx.Route{api, other}, base, manager, rows)
-	if got := findRouteByHostname(rebuilt, public); got == nil || !got.ConfiguredAlias || got.TargetPort != 3000 {
-		t.Fatalf("configured alias did not pick up a discovered route: %+v", rebuilt)
-	}
-	primary := nginx.Route{Hostname: public, TargetPort: 9000}
-	collision := addHomepageAndAliasRoutes([]nginx.Route{api, primary}, base, manager, nil)
-	if got := findRouteByHostname(collision, public); got == nil || *got != primary || len(collision) != 4 {
-		t.Fatalf("configured alias shadowed a primary route: %+v", collision)
-	}
-	page := renderAliasPage("", nil, manager.listedAliases(initial), nil)
-	if !strings.Contains(page, "<td>"+inner+"</td><td>Configured</td>") || strings.Contains(page, "data-delete-alias") {
-		t.Fatal("configured aliases should be listed without a delete action")
-	}
-}
-
 func TestAutomaticDevContainerAlias(t *testing.T) {
 	const base = "local.dev"
 	const alias = "inner-chekov." + base

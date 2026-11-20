@@ -165,6 +165,18 @@ unchanged. For containers with multiple routes, use `portsAttributes` to name
 each port or choose a source in the Aliases UI. Folder names are suggestions
 only.
 
+To declare additional aliases on a Docker service, use `chekov.aliases` for a
+single route, or `chekov.aliases.<container-port>` for specific ports. For example,
+these Compose labels give port 8080 two aliases and port 9000 one:
+
+```yaml
+labels:
+  chekov.aliases.8080: "api-preview,api-demo"
+  chekov.aliases.9000: "admin-preview"
+```
+
+The ports must already have routes. See [Docker alias labels](docs/CONFIGURATION.md#docker-alias-labels).
+
 ## Access from inside the container
 
 If a Dev Container needs to call the host by the generated route name, add Docker host aliases in `runArgs`:

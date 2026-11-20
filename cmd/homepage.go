@@ -27,6 +27,7 @@ type ContainerDiagnostic struct {
 	Metadata          string
 	AliasSuggestions  []string
 	DevContainerNames []string
+	LabeledAliases    []AliasEntry
 }
 
 type DiagnosticsState struct {
@@ -132,6 +133,7 @@ func diagnoseContainer(
 	}
 
 	var routes []nginx.Route
+	var aliasTargets []labelAliasTarget
 	var routeDetails []string
 	for _, target := range targets {
 		hostname := target.ProjectName + "." + baseDomain
@@ -160,11 +162,16 @@ func diagnoseContainer(
 			}
 		}
 
-		routes = append(routes, nginx.Route{
+		nginxRoute := nginx.Route{
 			ContainerName: containerInfo.Name,
 			Hostname:      route.Hostname,
 			TargetHost:    route.TargetHost,
 			TargetPort:    route.TargetPort,
+		}
+		routes = append(routes, nginxRoute)
+		aliasTargets = append(aliasTargets, labelAliasTarget{
+			route: nginxRoute,
+			ports: containerAliasPorts(route, target.ApplicationPort, containerInfo.PublishedPorts),
 		})
 		routeDetails = append(routeDetails, fmt.Sprintf("%s -> %s:%d", route.Hostname, route.TargetHost, route.TargetPort))
 	}
@@ -180,6 +187,7 @@ func diagnoseContainer(
 		diag.Reason = fmt.Sprintf("%d of %d routes resolved", len(routes), len(targets))
 	}
 	diag.Routes = strings.Join(routeDetails, "; ")
+	diag.LabeledAliases = aliasesFromLabels(containerInfo.Name, containerInfo.Labels, aliasTargets, baseDomain)
 	return routes, diag
 }
 

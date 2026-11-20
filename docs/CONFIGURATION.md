@@ -94,20 +94,6 @@ Defaults:
 /etc/nginx/mkcert/rootCA-key.pem
 ```
 
-### CHEKOV_ALIASES
-
-Optional comma-separated `alias=route` pairs. Both names can be short names
-under `BASE_DOMAIN` or full hostnames within it. For example,
-`CHEKOV_ALIASES='inner-chekov=chekov,public-api=api'` gives the Chekov UI
-and the `api` route additional hostnames.
-
-Configured aliases are restored on restart. Primary routes take precedence;
-configured names are reserved ahead of manual and automatic aliases. A missing
-or ambiguous target or a conflicting primary route is logged, and Chekov
-retries when routes are refreshed. Invalid pairs or duplicate alias names
-prevent the controller from starting. Edit the environment variable and
-recreate the container to change configured aliases.
-
 ### Peer aliases and CHEKOV_PEER_STATE_FILE
 
 Chekov automatically exports its local service hostnames and their aliases.
@@ -120,7 +106,7 @@ base domain. Checking the box checks that service for a valid export. If the
 check fails, the box is cleared and shows **No compatible export**; Chekov
 logs the reason and does not poll the service. Click again to retry. An empty
 export is valid. Fetches use the selected route's backend and TLS policy. Local
-routes and aliases win, as do reserved configured names; conflicting exports
+routes and aliases win; conflicting exports
 from multiple peers are skipped. Unchecking removes that peer's imports.
 A non-Chekov response from a previously enabled peer leaves the setting enabled for future retries, without
 publishing any aliases. Withdrawn names are removed on the next successful
@@ -255,6 +241,34 @@ docker run -d \
 ```
 
 This tells the proxy which port to prefer when several ports are exposed.
+
+### Docker alias labels
+
+For a container with one route, pass `--label chekov.aliases=api-preview,api-demo`
+to `docker run`. To add an alias for Chekov's own UI, label the Chekov container
+itself (for example, `--label chekov.aliases=inner-chekov`).
+
+For multiple ports, specify the **container port**, not the published host
+port. The port must already have a discoverable route. For example, in
+`devcontainer.json`:
+
+```json
+{
+  "forwardPorts": [8080, 9000],
+  "portsAttributes": {
+    "8080": { "label": "api" },
+    "9000": { "label": "admin" }
+  },
+  "runArgs": [
+    "--label=chekov.aliases.8080=api-preview,api-demo",
+    "--label=chekov.aliases.9000=admin-preview"
+  ]
+}
+```
+
+Labels do not change primary hostnames. Primary routes and manual aliases
+take precedence. If multiple routes claim the same label alias
+or a label's port has no unambiguous target, Chekov skips it and logs why.
 
 ### portsAttributes (Dev Containers)
 

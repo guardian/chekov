@@ -16,7 +16,6 @@ var aliasHostnameLabelRE = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`)
 type AliasEntry struct {
 	Automatic      bool
 	Imported       bool
-	Configured     bool
 	SourceHostname string
 	AliasHostname  string
 	TargetHost     string
@@ -29,48 +28,12 @@ type AliasEntry struct {
 }
 
 type AliasManager struct {
-	mu         sync.RWMutex
-	items      []AliasEntry
-	configured []AliasEntry // Loaded before the manager is shared.
+	mu    sync.RWMutex
+	items []AliasEntry
 }
 
 func NewAliasManager() *AliasManager {
 	return &AliasManager{}
-}
-
-func parseConfiguredAliases(raw, baseDomain string) ([]AliasEntry, error) {
-	if strings.TrimSpace(raw) == "" {
-		return nil, nil
-	}
-	baseDomain = strings.ToLower(strings.TrimSpace(baseDomain))
-	if baseDomain == "" {
-		return nil, fmt.Errorf("base domain is required")
-	}
-	var entries []AliasEntry
-	seen := make(map[string]bool)
-	for _, pair := range strings.Split(raw, ",") {
-		alias, source, ok := strings.Cut(pair, "=")
-		if !ok {
-			return nil, fmt.Errorf("expected alias=route, got %q", pair)
-		}
-		aliasHostname, err := normalizeAliasHostname(alias, baseDomain)
-		if err != nil {
-			return nil, fmt.Errorf("invalid alias in %q: %w", pair, err)
-		}
-		sourceHostname, err := normalizeAliasHostname(source, baseDomain)
-		if err != nil {
-			return nil, fmt.Errorf("invalid route in %q: %w", pair, err)
-		}
-		if aliasHostname == sourceHostname {
-			return nil, fmt.Errorf("alias %q must differ from its route", aliasHostname)
-		}
-		if seen[aliasHostname] {
-			return nil, fmt.Errorf("alias %q is configured more than once", aliasHostname)
-		}
-		seen[aliasHostname] = true
-		entries = append(entries, AliasEntry{Configured: true, AliasHostname: aliasHostname, SourceHostname: sourceHostname})
-	}
-	return entries, nil
 }
 
 func (m *AliasManager) Snapshot() []AliasEntry {
@@ -116,11 +79,6 @@ func (m *AliasManager) AddAlias(sourceHostname string, rawAlias string, baseDoma
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	for _, item := range m.configured {
-		if item.AliasHostname == aliasHostname {
-			return AliasEntry{}, fmt.Errorf("alias %q is reserved by CHEKOV_ALIASES", aliasHostname)
-		}
-	}
 	for _, item := range m.items {
 		if item.SourceHostname == sourceHostname && item.AliasHostname == aliasHostname {
 			return item, nil
@@ -164,7 +122,6 @@ func mergeManualAliases(routes []nginx.Route, items []AliasEntry) []nginx.Route 
 		}
 		aliasRoute := *source
 		aliasRoute.Hostname = item.AliasHostname
-		aliasRoute.ConfiguredAlias = false
 		aliasRoute.CertPath = item.CertPath
 		aliasRoute.KeyPath = item.KeyPath
 		if aliasRoute.CertPath == "" {
@@ -201,19 +158,50 @@ func (m *AliasManager) mergeAllAliases(routes []nginx.Route, rows []ContainerDia
 	for _, route := range out {
 		occupied[strings.ToLower(route.Hostname)] = true
 	}
-	for _, entry := range m.configured {
-		occupied[entry.AliasHostname] = true
-	}
 
 	byContainer := make(map[string][]nginx.Route)
 	primaryCount := make(map[string]int, len(base))
+	primary := make(map[string]nginx.Route, len(base))
 	for _, route := range base {
-		if route.ContainerName != "" && !route.ConfiguredAlias && !manual[route.Hostname] {
-			byContainer[route.ContainerName] = append(byContainer[route.ContainerName], route)
+		if !manual[route.Hostname] {
+			primary[route.Hostname] = route
+			if route.ContainerName != "" {
+				byContainer[route.ContainerName] = append(byContainer[route.ContainerName], route)
+			}
 		}
 		primaryCount[strings.ToLower(route.Hostname)]++
 	}
 	claims := make(map[string][]nginx.Route)
+	labelClaims := make(map[string]map[string]nginx.Route)
+	for _, row := range rows {
+		for _, alias := range row.LabeledAliases {
+			source, ok := primary[alias.SourceHostname]
+			if !ok || primaryCount[strings.ToLower(alias.SourceHostname)] != 1 {
+				log.Printf("WARNING: Ignoring Docker alias %q: source %q is unavailable or ambiguous", alias.AliasHostname, alias.SourceHostname)
+				continue
+			}
+			if occupied[alias.AliasHostname] {
+				if alias.AliasHostname != source.Hostname {
+					log.Printf("WARNING: Ignoring Docker alias %q: hostname already in use", alias.AliasHostname)
+				}
+				continue
+			}
+			if labelClaims[alias.AliasHostname] == nil {
+				labelClaims[alias.AliasHostname] = make(map[string]nginx.Route)
+			}
+			labelClaims[alias.AliasHostname][source.Hostname] = source
+		}
+	}
+	for name, targets := range labelClaims {
+		occupied[name] = true
+		if len(targets) != 1 {
+			log.Printf("WARNING: Ignoring Docker alias %q: multiple routes claim it", name)
+			continue
+		}
+		for _, target := range targets {
+			claims[name] = []nginx.Route{target}
+		}
+	}
 	for _, row := range rows {
 		targets := byContainer[row.Name]
 		if len(targets) != 1 || len(row.DevContainerNames) != 1 ||
@@ -242,8 +230,7 @@ func (m *AliasManager) mergeAllAliases(routes []nginx.Route, rows []ContainerDia
 }
 
 func (m *AliasManager) listedAliases(routes []nginx.Route) []AliasEntry {
-	items := append([]AliasEntry(nil), m.configured...)
-	items = append(items, m.Snapshot()...)
+	items := m.Snapshot()
 	for _, route := range routes {
 		if route.ImportedFrom != "" {
 			items = append(items, AliasEntry{Imported: true, SourceHostname: route.ImportedFrom, AliasHostname: route.Hostname})
@@ -257,38 +244,6 @@ func (m *AliasManager) listedAliases(routes []nginx.Route) []AliasEntry {
 		}
 	}
 	return items
-}
-
-func (m *AliasManager) mergeConfiguredAliases(routes []nginx.Route) []nginx.Route {
-	if len(m.configured) == 0 {
-		return routes
-	}
-	out := make([]nginx.Route, 0, len(routes)+len(m.configured))
-	byHostname := make(map[string][]nginx.Route)
-	for _, route := range routes {
-		if !route.ConfiguredAlias {
-			out = append(out, route)
-			name := strings.ToLower(route.Hostname)
-			byHostname[name] = append(byHostname[name], route)
-		}
-	}
-	for _, item := range m.configured {
-		sources := byHostname[item.SourceHostname]
-		switch {
-		case len(byHostname[item.AliasHostname]) != 0:
-			log.Printf("WARNING: CHEKOV_ALIASES: alias %q conflicts with existing route", item.AliasHostname)
-		case len(sources) == 0 || (len(sources) == 1 && sources[0].AutoAliasSource != ""):
-			log.Printf("WARNING: CHEKOV_ALIASES: alias %q is waiting for route %q", item.AliasHostname, item.SourceHostname)
-		case len(sources) > 1:
-			log.Printf("WARNING: CHEKOV_ALIASES: alias %q has ambiguous route %q", item.AliasHostname, item.SourceHostname)
-		default:
-			alias := sources[0]
-			alias.Hostname = item.AliasHostname
-			alias.ConfiguredAlias = true
-			out = append(out, alias)
-		}
-	}
-	return out
 }
 
 func (m *AliasManager) RemoveAlias(aliasHostname string) bool {
