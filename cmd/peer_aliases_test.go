@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +16,36 @@ import (
 
 	"github.com/dev-tools/chekov/internal/nginx"
 )
+
+func TestPeerExportSharesLocalServiceRoutesByDefault(t *testing.T) {
+	dir := t.TempDir()
+	config := nginx.NewConfigGenerator(filepath.Join(dir, "generated.conf"), "", "")
+	routes := []nginx.Route{
+		{Hostname: "api.local.dev", ContainerName: "api", TargetHost: "api", TargetPort: 8080},
+		{Hostname: "api-alias.local.dev", ContainerName: "api", TargetHost: "api", TargetPort: 8080, ConfiguredAlias: true},
+		{Hostname: "chekov.local.dev", TargetHost: "127.0.0.1", TargetPort: 18080},
+		{Hostname: "inner-chekov.local.dev", TargetHost: "127.0.0.1", TargetPort: 18080, ConfiguredAlias: true},
+		{Hostname: "tunnel.local.dev", ContainerName: "aws-tunnel-1", TargetHost: "127.0.0.1", TargetPort: 8888},
+		{Hostname: "imported.local.dev", ImportedFrom: "peer.local.dev", ContainerName: "peer", TargetHost: "peer", TargetPort: 8080},
+	}
+	if err := config.ApplyRoutes(routes); err != nil {
+		t.Fatal(err)
+	}
+	p, err := newPeerAliases(filepath.Join(dir, "peer-aliases.json"), "local.dev", NewAliasManager(), config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := httptest.NewRecorder()
+	p.export(w, httptest.NewRequest(http.MethodGet, peerExportPath, nil))
+	var got peerExport
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"api-alias.local.dev", "api.local.dev"}
+	if w.Code != http.StatusOK || got.Kind != "chekov-route-export/v1" || !slices.Equal(got.Hostnames, want) {
+		t.Fatalf("unexpected export: status %d, body %s", w.Code, w.Body)
+	}
+}
 
 func TestPeerExportCapability(t *testing.T) {
 	const domain = "local.dev"
@@ -53,7 +84,7 @@ func TestPeerExportCapability(t *testing.T) {
 func TestPeerAliasAvailabilityAndPrecedence(t *testing.T) {
 	const domain = "local.dev"
 	path := filepath.Join(t.TempDir(), "peer-aliases.json")
-	p, err := newPeerAliases(path, domain, "", NewAliasManager(), nil)
+	p, err := newPeerAliases(path, domain, NewAliasManager(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +111,7 @@ func TestPeerAliasAvailabilityAndPrecedence(t *testing.T) {
 	if view := p.views(got)[0]; !view.Enabled || view.Imported != imported {
 		t.Fatalf("expected compatible peer and imported hostname: %+v", view)
 	}
-	restored, err := newPeerAliases(path, domain, "", NewAliasManager(), nil)
+	restored, err := newPeerAliases(path, domain, NewAliasManager(), nil)
 	if err != nil || !restored.enabled[first.Hostname] {
 		t.Fatalf("checkbox setting was not restored: %v", err)
 	}
@@ -126,7 +157,7 @@ func TestPeerSettingsChecksOnlyOnOptIn(t *testing.T) {
 	if err := config.ApplyRoutes([]nginx.Route{route}); err != nil {
 		t.Fatal(err)
 	}
-	p, err := newPeerAliases(path, "local.dev", "", NewAliasManager(), config)
+	p, err := newPeerAliases(path, "local.dev", NewAliasManager(), config)
 	if err != nil {
 		t.Fatal(err)
 	}

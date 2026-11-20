@@ -84,7 +84,7 @@ func main() {
 	if peerPath == "" {
 		peerPath = "/var/lib/chekov/peer-aliases.json"
 	}
-	peers, err := newPeerAliases(peerPath, *baseDomain, os.Getenv("CHEKOV_EXPORT_ALIASES"), aliasManager, configGen)
+	peers, err := newPeerAliases(peerPath, *baseDomain, aliasManager, configGen)
 	if err != nil {
 		log.Fatalf("Configure peer aliases: %v", err)
 	}

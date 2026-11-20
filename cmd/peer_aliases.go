@@ -58,26 +58,14 @@ type peerAliases struct {
 	results map[string]peerResult
 	path    string
 	domain  string
-	exports map[string]bool
 	aliases *AliasManager
 	config  *nginx.ConfigGenerator
 }
 
-func newPeerAliases(path, domain, exports string, aliases *AliasManager, config *nginx.ConfigGenerator) (*peerAliases, error) {
+func newPeerAliases(path, domain string, aliases *AliasManager, config *nginx.ConfigGenerator) (*peerAliases, error) {
 	p := &peerAliases{
 		path: path, domain: strings.ToLower(domain), aliases: aliases, config: config,
 		enabled: make(map[string]bool), results: make(map[string]peerResult),
-		exports: make(map[string]bool),
-	}
-	for _, name := range strings.Split(exports, ",") {
-		if strings.TrimSpace(name) == "" {
-			continue
-		}
-		host, err := normalizeAliasHostname(name, p.domain)
-		if err != nil {
-			return nil, fmt.Errorf("CHEKOV_EXPORT_ALIASES: %w", err)
-		}
-		p.exports[host] = true
 	}
 	data, err := os.ReadFile(path)
 	if err != nil && !os.IsNotExist(err) {
@@ -258,7 +246,7 @@ func (p *peerAliases) settings(w http.ResponseWriter, r *http.Request) {
 func (p *peerAliases) export(w http.ResponseWriter, r *http.Request) {
 	names := make([]string, 0)
 	for _, route := range p.config.CurrentRoutes() {
-		if p.exports[route.Hostname] && peerServiceRoute(route) {
+		if peerServiceRoute(route) {
 			names = append(names, route.Hostname)
 		}
 	}

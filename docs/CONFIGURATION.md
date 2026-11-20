@@ -108,12 +108,11 @@ retries when routes are refreshed. Invalid pairs or duplicate alias names
 prevent the controller from starting. Edit the environment variable and
 recreate the container to change configured aliases.
 
-### CHEKOV_EXPORT_ALIASES and CHEKOV_PEER_STATE_FILE
+### Peer aliases and CHEKOV_PEER_STATE_FILE
 
-On inner Chekov, set `CHEKOV_EXPORT_ALIASES=inner-test,another-service` to
-share those existing service hostnames with peers. By default no hostnames
-are shared. Only hostnames are exported; tunnels, Chekov's UI, and routes
-imported from other peers are excluded.
+Chekov automatically exports its local service hostnames and their aliases.
+No configuration is needed on inner Chekov. Only hostnames are exported;
+tunnels, Chekov's UI, and routes imported from other peers are excluded.
 
 On outer Chekov, open **Aliases** and check **Fetch aliases** next to the
 trusted route that points to inner Chekov. Both instances must use the same
