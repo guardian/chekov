@@ -89,12 +89,11 @@ func main() {
 		log.Fatalf("Configure peer aliases: %v", err)
 	}
 	configGen.DecorateRoutes = peers.decorate
-	startHomepageServer(ctx, "/etc/nginx/nginx.conf", *nginxConfigPath, configGen, homepageState, tunnelManager, aliasManager, baseDomain, peers)
-
 	identifier := discovery.NewIdentifier()
-	proxyID, proxyNetworks := resolveProxyIdentity(ctx, os.Hostname, dockerClient.InspectContainer)
+	proxyID, proxyNetworks, linkPorts := resolveProxyIdentity(ctx, os.Hostname, dockerClient.InspectContainer)
 	resolver := discovery.NewNetworkResolver(proxyID)
 	resolver.SetProxyNetworks(proxyNetworks)
+	startHomepageServer(ctx, "/etc/nginx/nginx.conf", *nginxConfigPath, configGen, homepageState, tunnelManager, aliasManager, baseDomain, peers, linkPorts)
 
 	log.Println("Performing initial reconciliation")
 	reconcileRoutes(ctx, dockerClient, identifier, resolver, configGen, homepageState, proxyID, *baseDomain, tunnelManager, aliasManager)
@@ -201,7 +200,7 @@ func addHomepageAndAliasRoutes(routes []nginx.Route, baseDomain string, aliasMan
 	return routes
 }
 
-func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath string, configGen *nginx.ConfigGenerator, homepageState *DiagnosticsState, tunnelManager *TunnelManager, aliasManager *AliasManager, baseDomain *string, peers *peerAliases) {
+func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath string, configGen *nginx.ConfigGenerator, homepageState *DiagnosticsState, tunnelManager *TunnelManager, aliasManager *AliasManager, baseDomain *string, peers *peerAliases, linkPorts dashboardPorts) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET "+peerExportPath, peers.export)
 	mux.HandleFunc("/api/peer-aliases", peers.settings)
@@ -358,7 +357,7 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 		for i := range endpointRows {
 			endpointRows[i].Connectivity = results[endpointRows[i].Hostname]
 		}
-		_, _ = w.Write([]byte(renderHomepageHTML(r.Host, rows, revision, endpointRows, configGen.RoutingError())))
+		_, _ = w.Write([]byte(renderHomepageHTML(r.Host, rows, revision, endpointRows, configGen.RoutingError(), linkPorts.forRequest(r))))
 	})
 
 	mux.HandleFunc("/homepage/connectivity", func(w http.ResponseWriter, r *http.Request) {
@@ -419,7 +418,7 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 		rows := homepageState.Snapshot()
 		rows = append(rows, tunnelDiagnostics(tunnelManager, *baseDomain)...)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(renderDebugPageHTML(r.Host, rows, homepageState.Revision())))
+		_, _ = w.Write([]byte(renderDebugPageHTML(r.Host, rows, homepageState.Revision(), linkPorts.forRequest(r))))
 	})
 
 	mux.HandleFunc("/container/", func(w http.ResponseWriter, r *http.Request) {
@@ -777,29 +776,29 @@ func watchEvents(
 	}
 }
 
-func resolveProxyIdentity(ctx context.Context, hostname func() (string, error), inspect func(context.Context, string) (*discovery.ContainerInfo, error)) (string, map[string]discovery.NetworkInfo) {
+func resolveProxyIdentity(ctx context.Context, hostname func() (string, error), inspect func(context.Context, string) (*discovery.ContainerInfo, error)) (string, map[string]discovery.NetworkInfo, dashboardPorts) {
 	host, err := hostname()
 	if err != nil {
 		log.Printf("WARNING: Could not identify proxy container: failed to read hostname: %v", err)
-		return "", nil
+		return "", nil, dashboardPorts{}
 	}
 	if host == "" {
 		log.Print("WARNING: Could not identify proxy container: hostname is empty")
-		return "", nil
+		return "", nil, dashboardPorts{}
 	}
 	proxy, err := inspect(ctx, host)
 	if err != nil {
 		log.Printf("WARNING: Could not identify proxy container from hostname %q: %v", host, err)
-		return "", nil
+		return "", nil, dashboardPorts{}
 	}
 	if proxy.ID == "" {
 		log.Printf("WARNING: Docker returned no ID for proxy hostname %q", host)
-		return "", nil
+		return "", nil, dashboardPorts{}
 	}
 	if len(proxy.NetworkSettings) == 0 {
 		log.Printf("WARNING: Proxy container %q has no inspectable networks", proxy.ID)
 	}
-	return proxy.ID, proxy.NetworkSettings
+	return proxy.ID, proxy.NetworkSettings, discoverDashboardPorts(proxy.PublishedPorts)
 }
 
 func isProxyContainer(containerInfo *discovery.ContainerInfo, proxyID string) bool {

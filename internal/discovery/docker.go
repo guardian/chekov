@@ -160,19 +160,20 @@ func (dc *DockerClient) InspectContainer(ctx context.Context, containerID string
 
 	// Parse published ports
 	publishedPorts := make(map[string][]PortBinding)
-	if resp.HostConfig.PortBindings != nil {
-		for portKey, bindings := range resp.HostConfig.PortBindings {
-			key := portKey.Port()
-			if key == "" {
-				key = fmt.Sprintf("%s/tcp", portKey.Port())
-			}
-			for _, binding := range bindings {
-				b := PortBinding{
-					HostIP:   addressString(binding.HostIP),
-					HostPort: binding.HostPort,
-				}
-				publishedPorts[key] = append(publishedPorts[key], b)
-			}
+	bindingsByPort := resp.NetworkSettings.Ports
+	if bindingsByPort == nil {
+		bindingsByPort = resp.HostConfig.PortBindings
+	}
+	for portKey, bindings := range bindingsByPort {
+		if !strings.HasSuffix(portKey.String(), "/tcp") {
+			continue
+		}
+		key := portKey.Port()
+		for _, binding := range bindings {
+			publishedPorts[key] = append(publishedPorts[key], PortBinding{
+				HostIP:   addressString(binding.HostIP),
+				HostPort: binding.HostPort,
+			})
 		}
 	}
 

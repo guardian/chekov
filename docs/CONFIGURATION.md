@@ -177,6 +177,16 @@ services:
 
 The proxy does not manage DNS itself. You must make the generated hostnames resolve to your local machine.
 
+Chekov reads its Docker port mappings at startup to build dashboard links. For
+example, with `-p 80:80 -p 8443:443`, links use HTTPS port `8443` even when
+you open the dashboard over HTTP. If only one protocol is published, the
+homepage uses that protocol and port; if both are published, it prefers HTTPS.
+Links using the current request's protocol
+use its port instead. If Docker reports multiple distinct published ports for
+the other protocol, Chekov does not guess which one to link to. Automatic
+discovery assumes Docker is the browser-facing proxy; another proxy in front
+may publish different ports.
+
 Typical options:
 
 - wildcard DNS record such as `*.local.dev-gutools.co.uk -> <your-host-ip>`

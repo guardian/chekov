@@ -91,7 +91,7 @@ func TestRenderHomepageHTMLUsesSharedStaticAssets(t *testing.T) {
 		Hostname: "frontend.local.dev",
 		Provider: "frontend",
 		Status:   "routed",
-	}}, "")
+	}}, "", dashboardPorts{})
 
 	if !strings.Contains(html, "data-page=\"homepage\"") {
 		t.Fatalf("homepage HTML missing page marker")
@@ -158,7 +158,7 @@ func TestPageTitlesUseShortRequestHostname(t *testing.T) {
 }
 
 func TestHomepageHeadingUsesShortHostname(t *testing.T) {
-	page := renderHomepageHTML("inner-chekov.local.dev-gutools.co.uk", nil, 1, nil, "")
+	page := renderHomepageHTML("inner-chekov.local.dev-gutools.co.uk", nil, 1, nil, "", dashboardPorts{})
 	if !strings.Contains(page, `<h1><a href="/" class="page-header-link">Inner-Chekov</a>: Home</h1>`) {
 		t.Fatal("homepage heading missing short instance name")
 	}
@@ -170,7 +170,7 @@ func TestMainActionMenuAppearsOnMainPagesOnly(t *testing.T) {
 		html        string
 		currentPath string
 	}{
-		{name: "homepage", html: renderHomepageHTML("", nil, 1, nil, "")},
+		{name: "homepage", html: renderHomepageHTML("", nil, 1, nil, "", dashboardPorts{})},
 		{name: "AWS config", html: renderAWSConfigPage("", AWSConfig{}, false), currentPath: "/aws-config"},
 		{name: "tunnels", html: renderTunnelPage("", AWSConfig{}, nil, nil), currentPath: "/tunnels"},
 		{name: "aliases", html: renderAliasPage("", nil, nil, nil), currentPath: "/aliases"},
@@ -219,7 +219,7 @@ func TestMainActionMenuAppearsOnMainPagesOnly(t *testing.T) {
 		name string
 		html string
 	}{
-		{name: "debug", html: renderDebugPageHTML("", nil, 1)},
+		{name: "debug", html: renderDebugPageHTML("", nil, 1, dashboardPorts{})},
 		{name: "containers", html: renderContainersHTML("", nil)},
 		{name: "logs", html: renderLogsPage("", "")},
 		{name: "command generator", html: renderCommandGeneratorPage("")},

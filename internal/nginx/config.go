@@ -145,6 +145,11 @@ func (cg *ConfigGenerator) renderConfig(routes []Route) string {
 		"# Auto-generated Nginx configuration",
 		"# DO NOT EDIT manually - this file is regenerated",
 		"",
+		"map $http_host $chekov_request_authority {",
+		"    default $http_host;",
+		"    \"\" $host;",
+		"}",
+		"",
 	}
 
 	lines = append(lines, cg.generateDefaultServerBlock()...)
@@ -226,7 +231,7 @@ func (cg *ConfigGenerator) generateDefaultServerBlock() []string {
 		"",
 		"    location = /_chekov/config {",
 		"        proxy_pass http://127.0.0.1:18080/nginx/config;",
-		"        proxy_set_header Host $host;",
+		"        proxy_set_header Host $chekov_request_authority;",
 		"    }",
 		"",
 		"    location / {",
@@ -255,7 +260,7 @@ func (cg *ConfigGenerator) generateDefaultServerBlock() []string {
 		"",
 		"    location = /_chekov/config {",
 		"        proxy_pass http://127.0.0.1:18080/nginx/config;",
-		"        proxy_set_header Host $host;",
+		"        proxy_set_header Host $chekov_request_authority;",
 		"    }",
 		"",
 		"    location / {",
@@ -282,6 +287,10 @@ func (cg *ConfigGenerator) generateServerBlock(route Route) []string {
 	if verifyName == "" {
 		verifyName = "$host"
 	}
+	requestHost := "$host"
+	if resolvedRoute.TargetHost == "127.0.0.1" && resolvedRoute.TargetPort == 18080 && protocol == "http" {
+		requestHost = "$chekov_request_authority"
+	}
 
 	proxyLocation := []string{
 		"    location / {",
@@ -307,7 +316,7 @@ func (cg *ConfigGenerator) generateServerBlock(route Route) []string {
 		"",
 		"        # Proxy headers",
 		"        proxy_http_version 1.1;",
-		"        proxy_set_header Host $host;",
+		"        proxy_set_header Host "+requestHost+";",
 		"        proxy_set_header X-Real-IP $remote_addr;",
 		"        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;",
 		"        proxy_set_header X-Forwarded-Proto $scheme;",
@@ -340,7 +349,7 @@ func (cg *ConfigGenerator) generateServerBlock(route Route) []string {
 		"",
 		"    location = /_chekov/config {",
 		"        proxy_pass http://127.0.0.1:18080/nginx/config;",
-		"        proxy_set_header Host $host;",
+		"        proxy_set_header Host $chekov_request_authority;",
 		"    }",
 		"}",
 		"",
@@ -364,7 +373,7 @@ func (cg *ConfigGenerator) generateServerBlock(route Route) []string {
 		"",
 		"    location = /_chekov/config {",
 		"        proxy_pass http://127.0.0.1:18080/nginx/config;",
-		"        proxy_set_header Host $host;",
+		"        proxy_set_header Host $chekov_request_authority;",
 		"    }",
 		"}",
 	)

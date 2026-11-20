@@ -7,6 +7,26 @@ import (
 	"testing"
 )
 
+func TestProxyPreservesAuthorityOnlyForChekovBackend(t *testing.T) {
+	generator := NewConfigGenerator("", "", "")
+	config := generator.renderConfig(nil)
+	for _, line := range []string{"map $http_host $chekov_request_authority {", "default $http_host;", `"" $host;`} {
+		if !strings.Contains(config, line) {
+			t.Errorf("missing authority mapping: %s", line)
+		}
+	}
+	ui := Route{Hostname: "ui-alias.local.dev", TargetHost: "127.0.0.1", TargetPort: 18080}
+	app := Route{Hostname: "app.local.dev", TargetHost: "app", TargetPort: 18080, Protocol: "https"}
+	uiConfig := strings.Join(generator.generateServerBlock(ui), "\n")
+	appConfig := strings.Join(generator.generateServerBlock(app), "\n")
+	if strings.Contains(uiConfig, "proxy_set_header Host $host;") {
+		t.Fatal("UI alias should preserve the authority on HTTP and HTTPS")
+	}
+	if strings.Count(appConfig, "proxy_set_header Host $host;") != 2 || !strings.Contains(appConfig, "proxy_ssl_name $host;") {
+		t.Fatal("service Host and TLS server name should remain hostname-only")
+	}
+}
+
 func TestRoutingErrorLifecycle(t *testing.T) {
 	dir := t.TempDir()
 	script := "#!/bin/sh\nif [ \"$1\" = \"$NGINX_TEST_FAILURE\" ]; then\n echo 'simulated nginx error' >&2\n exit 1\nfi\n"

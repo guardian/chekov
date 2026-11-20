@@ -402,7 +402,7 @@ func renderHelpSection(page string) string {
 	return fmt.Sprintf("<div class=\"help-block\"><h3>How this page works</h3><pre>%s</pre></div>", html.EscapeString(text))
 }
 
-func renderHomepageHTML(host string, rows []ContainerDiagnostic, revision uint64, endpointRows []PublishedEndpointRow, routingError string) string {
+func renderHomepageHTML(host string, rows []ContainerDiagnostic, revision uint64, endpointRows []PublishedEndpointRow, routingError string, ports dashboardPorts) string {
 	var b strings.Builder
 	b.WriteString(renderPageHead(host, "Home"))
 	b.WriteString(renderMainStylesheetLink())
@@ -432,13 +432,16 @@ func renderHomepageHTML(host string, rows []ContainerDiagnostic, revision uint64
 					service = html.EscapeString(row.Status)
 				}
 			}
-			b.WriteString("<tr><td><a href=\"https://")
+			link := ports.preferredServiceURL(row.Hostname)
+			b.WriteString("<tr><td>")
+			if link != "" {
+				b.WriteString(`<a href="` + html.EscapeString(link) + `" target="_blank" rel="noopener noreferrer">`)
+			}
 			b.WriteString(host)
-			b.WriteString("\" target=\"_blank\" rel=\"noopener noreferrer\">")
-			b.WriteString(host)
-			b.WriteString(" ")
-			b.WriteString(renderOpenInNewTabIcon())
-			b.WriteString("</a></td><td>")
+			if link != "" {
+				b.WriteString(" " + renderOpenInNewTabIcon() + "</a>")
+			}
+			b.WriteString("</td><td>")
 			b.WriteString(service)
 			result := row.Connectivity
 			if result.Summary == "" {
@@ -542,7 +545,7 @@ func renderMainStylesheetLink() string {
 	return `<meta name="viewport" content="width=device-width, initial-scale=1">` + renderStylesheetLink()
 }
 
-func renderRouteLinks(routes string) string {
+func renderRouteLinks(routes string, ports dashboardPorts) string {
 	if routes == "" {
 		return ""
 	}
@@ -558,10 +561,15 @@ func renderRouteLinks(routes string) string {
 			continue
 		}
 		escaped := html.EscapeString(host)
-		links = append(links,
-			fmt.Sprintf(`<a href="https://%s" target="_blank" rel="noopener noreferrer"><span class="proto-badge proto-https">HTTPS</span>%s</a>`, escaped, escaped),
-			fmt.Sprintf(`<a href="http://%s" target="_blank" rel="noopener noreferrer"><span class="proto-badge proto-http">HTTP</span>%s</a>`, escaped, escaped),
-		)
+		for _, scheme := range []string{"https", "http"} {
+			if link := ports.serviceURL(scheme, host); link != "" {
+				links = append(links, fmt.Sprintf(`<a href="%s" target="_blank" rel="noopener noreferrer"><span class="proto-badge proto-%s">%s</span>%s</a>`,
+					html.EscapeString(link), scheme, strings.ToUpper(scheme), escaped))
+			}
+		}
+		if ports.http == ambiguousPort && ports.https == ambiguousPort {
+			links = append(links, escaped)
+		}
 	}
 
 	return strings.Join(links, "<br>")
@@ -877,7 +885,7 @@ func renderOpenInNewTabIcon() string {
 	return `<span class="new-tab-icon" aria-label="opens in new tab" title="opens in new tab">↗</span>`
 }
 
-func renderDebugPageHTML(host string, rows []ContainerDiagnostic, revision uint64) string {
+func renderDebugPageHTML(host string, rows []ContainerDiagnostic, revision uint64, ports dashboardPorts) string {
 	var b strings.Builder
 	b.WriteString(renderPageHead(host, "Debug"))
 	b.WriteString(renderStylesheetLink())
@@ -908,7 +916,7 @@ func renderDebugPageHTML(host string, rows []ContainerDiagnostic, revision uint6
 			b.WriteString("</td><td>")
 			b.WriteString(html.EscapeString(row.Reason))
 			b.WriteString("</td><td>")
-			b.WriteString(renderRouteLinks(row.Routes))
+			b.WriteString(renderRouteLinks(row.Routes, ports))
 			b.WriteString("</td></tr>")
 		}
 	}

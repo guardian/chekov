@@ -13,7 +13,7 @@ func TestExportMenuBrowserFixtures(t *testing.T) {
 	}
 
 	pages := map[string]string{
-		"home.html":                renderHomepageHTML("", nil, 1, nil, ""),
+		"home.html":                renderHomepageHTML("", nil, 1, nil, "", dashboardPorts{}),
 		"aws-config.html":          renderAWSConfigPage("", AWSConfig{}, false),
 		"tunnels.html":             renderTunnelPage("", AWSConfig{}, nil, nil),
 		"aliases.html":             renderAliasPage("", nil, nil, nil),

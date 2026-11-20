@@ -15,8 +15,9 @@ func TestProxyIdentityResolvesShortDockerHostname(t *testing.T) {
 		ID:              hostname + "4db1d218d97d05dba308a301823c096ecf63c0d4f900abcabf1a",
 		Name:            "inner-chekov",
 		NetworkSettings: map[string]discovery.NetworkInfo{"bridge": {}},
+		PublishedPorts:  map[string][]discovery.PortBinding{"443": {{HostPort: "8443"}}},
 	}
-	id, networks := resolveProxyIdentity(context.Background(), func() (string, error) {
+	id, networks, ports := resolveProxyIdentity(context.Background(), func() (string, error) {
 		return hostname, nil
 	}, func(_ context.Context, lookup string) (*discovery.ContainerInfo, error) {
 		if lookup != hostname {
@@ -26,6 +27,9 @@ func TestProxyIdentityResolvesShortDockerHostname(t *testing.T) {
 	})
 	if id != self.ID || !reflect.DeepEqual(networks, self.NetworkSettings) || !isProxyContainer(&self, id) {
 		t.Fatalf("resolved ID = %q, networks = %v; expected inner-chekov to be skipped", id, networks)
+	}
+	if ports.https != 8443 {
+		t.Fatalf("discovered HTTPS port = %d, want 8443", ports.https)
 	}
 	other := discovery.ContainerInfo{
 		ID:     "different-container",
@@ -38,7 +42,7 @@ func TestProxyIdentityResolvesShortDockerHostname(t *testing.T) {
 }
 
 func TestProxyIdentityDoesNotGuessWhenInspectFails(t *testing.T) {
-	id, networks := resolveProxyIdentity(context.Background(), func() (string, error) {
+	id, networks, _ := resolveProxyIdentity(context.Background(), func() (string, error) {
 		return "custom-hostname", nil
 	}, func(context.Context, string) (*discovery.ContainerInfo, error) {
 		return nil, errors.New("container not found")

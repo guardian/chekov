@@ -137,7 +137,7 @@ func TestRenderHomepageConnectivity(t *testing.T) {
 		Connectivity: ConnectivityResult{
 			Summary: "Connection refused", Detail: "<error>", CheckedAt: time.Now(),
 		},
-	}}, "Nginx rejected <config>")
+	}}, "Nginx rejected <config>", dashboardPorts{})
 	for _, want := range []string{
 		"<th>Connectivity</th>", `data-connectivity-host="app.local.dev"`,
 		"Connection refused", "&lt;error&gt;", "Last checked:",
@@ -147,7 +147,7 @@ func TestRenderHomepageConnectivity(t *testing.T) {
 			t.Fatalf("page missing %q", want)
 		}
 	}
-	empty := renderHomepageHTML("", nil, 1, nil, "")
+	empty := renderHomepageHTML("", nil, 1, nil, "", dashboardPorts{})
 	if !strings.Contains(empty, `colspan="3"`) || !strings.Contains(empty, `role="alert" hidden`) {
 		t.Fatal("empty table or hidden error banner incorrect")
 	}
