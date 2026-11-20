@@ -9,6 +9,7 @@ How to use it:
 - Click Add alias to create the secondary hostname and reload the page.
 - Use Delete to remove a manual alias. Automatic aliases come from a Dev Container's metadata name when it has one route and no hostname collision.
 - Primary routes and manual aliases take precedence. If multiple containers claim the same automatic alias, none gets it.
+- Configured aliases come from CHEKOV_ALIASES (alias=route pairs). They take precedence over manual and automatic aliases, but not primary routes. Change them in the container environment, not here.
 
 Requirements:
 - The source hostname must already be mapped and active in the current chekov configuration.

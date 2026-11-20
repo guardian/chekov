@@ -73,8 +73,13 @@ func main() {
 	configGen := nginx.NewConfigGenerator(*nginxConfigPath, *tlsCert, *tlsKey)
 	homepageState := &DiagnosticsState{}
 	tunnelManager := NewTunnelManager()
-	tunnelManager.BindConfig(*baseDomain, configGen)
 	aliasManager := NewAliasManager()
+	aliasManager.configured, err = parseConfiguredAliases(os.Getenv("CHEKOV_ALIASES"), *baseDomain)
+	if err != nil {
+		log.Fatalf("Invalid CHEKOV_ALIASES: %v", err)
+	}
+	tunnelManager.aliasManager = aliasManager
+	tunnelManager.BindConfig(*baseDomain, configGen)
 	startHomepageServer(ctx, "/etc/nginx/nginx.conf", *nginxConfigPath, configGen, homepageState, tunnelManager, aliasManager, baseDomain)
 
 	identifier := discovery.NewIdentifier()
@@ -198,6 +203,7 @@ func addHomepageAndAliasRoutes(routes []nginx.Route, baseDomain string, aliasMan
 		TargetPort: 18080,
 	})
 	if aliasManager != nil {
+		routes = aliasManager.mergeConfiguredAliases(routes)
 		routes = aliasManager.mergeAllAliases(routes, rows, baseDomain)
 	}
 	return routes

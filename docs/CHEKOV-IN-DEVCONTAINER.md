@@ -60,13 +60,12 @@ Dev Container's port `8080` to the host or enable IDE port forwarding.
 ## 3. Start inner Chekov
 
 Run this **inside the Dev Container**, where `docker ps` should show the inner
-daemon's containers, not the host's. Use an image that includes the fix for
-aliases of Chekov's own UI surviving route refreshes; substitute a newer tag or
-build from this checkout inside the Dev Container if your image lacks it.
+daemon's containers, not the host's. Use an image that supports `CHEKOV_ALIASES`.
 
 ```bash
 docker run -d --name inner-chekov \
   -p 8080:80 \
+  -e CHEKOV_ALIASES='inner-chekov=chekov' \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \
   ghcr.io/guardian/chekov/nginx:latest
 ```
@@ -78,20 +77,11 @@ certificate is only used by clients that connect directly to inner Chekov
 over HTTPS. For HTTPS **upstreams**, inner Chekov instead needs to trust the
 public CA that signed the upstream service's certificate.
 
-## 4. Add the alias on inner Chekov
+## 4. Check the alias on inner Chekov
 
-Still **inside the Dev Container**, run:
-
-```bash
-curl -fsS -o /dev/null -w '%{http_code}\n' \
-  -H 'Host: chekov.local.dev-gutools.co.uk' \
-  --data-urlencode 'sourceHostname=chekov' \
-  --data-urlencode 'alias=inner-chekov' \
-  http://127.0.0.1:8080/api/aliases
-```
-
-Expect `303`. Use the API because Chekov's own UI route isn't listed in the
-Aliases source dropdown. To check the alias before involving outer Chekov:
+`CHEKOV_ALIASES` tells inner Chekov to serve its UI at `inner-chekov` on
+every restart. To check it before involving outer Chekov, run this inside
+the Dev Container:
 
 ```bash
 curl -fsS -o /dev/null -w '%{http_code}\n' \
@@ -101,19 +91,19 @@ curl -fsS -o /dev/null -w '%{http_code}\n' \
 
 Expect `200`.
 
-## 5. Add the alias on outer Chekov and open it
+## 5. Open the inner UI through outer Chekov
 
-Open the **outer** Chekov UI. In **Aliases**, select the discovered Dev
-Container route that targets port `8080` over HTTP. Use the hostname shown in
-the UI; it may differ from the Docker container name. Add `inner-chekov` as
-the alias. Outer Chekov preserves the request hostname, so inner Chekov needs
-the same alias to select its UI route.
+If the Dev Container is named `inner-chekov` in its metadata and has a single
+route with no hostname collision, outer Chekov creates the alias automatically.
+Otherwise, use **Aliases** on outer Chekov to add `inner-chekov` to the discovered
+Dev Container route that targets port `8080` over HTTP. Outer Chekov preserves
+the request hostname, so inner Chekov uses its configured alias to select its UI.
 
 Open **`https://inner-chekov.local.dev-gutools.co.uk/`** without `:8080`. If
 the Dev Container route is missing, check the shared network and that outer
 Chekov discovers port `8080`. If the route exists but fails, repeat the curl check in
-step 4 to isolate the inner hop. Recreate an alias after restarting the
-Chekov instance that holds it; a Docker route refresh alone does not clear it.
+step 4 to isolate the inner hop. Only aliases added manually need to be recreated
+after a Chekov restart.
 
 ## 6. Expose a demo API from the same Dev Container
 
