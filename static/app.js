@@ -514,6 +514,65 @@
   }
 
   function setupAliasPage() {
+    const peers = Array.from(document.querySelectorAll('[data-fetch-aliases]'));
+    if (peers.length > 0) {
+      const peerStatus = (input) => input.closest('tr').querySelector('[data-peer-status]');
+      let settingsRevision = 0;
+      const refreshPeers = async () => {
+        const revision = settingsRevision;
+        try {
+          const response = await fetch('/api/peer-aliases');
+          if (!response.ok) throw new Error('Could not read peer status');
+          const states = await response.json();
+          if (revision !== settingsRevision) return;
+          for (const input of peers) {
+            if (input.dataset.saving) continue;
+            const state = states.find((entry) => entry.host === input.dataset.fetchAliases);
+            if (state) {
+              const wasChecked = input.checked;
+              input.checked = state.enabled;
+              const status = peerStatus(input);
+              if (status.dataset.imported !== state.imported) {
+                location.reload();
+                return;
+              }
+              if ((state.enabled || wasChecked) && status.textContent !== state.status) status.textContent = state.status;
+            }
+          }
+        } catch {
+          if (revision !== settingsRevision) return;
+          for (const input of peers) {
+            if (input.checked && !input.disabled) peerStatus(input).textContent = 'Could not read peer status';
+          }
+        }
+      };
+      peers.forEach((input) => input.addEventListener('change', async () => {
+        const enabled = input.checked;
+        settingsRevision++;
+        input.dataset.saving = 'true';
+        input.disabled = true;
+        const status = peerStatus(input);
+        status.textContent = enabled ? 'Checking for Chekov…' : 'Removing imported aliases...';
+        try {
+          const response = await fetch('/api/peer-aliases', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ host: input.dataset.fetchAliases, enabled }),
+          });
+          if (!response.ok) throw new Error((await response.text()).trim());
+          location.reload();
+        } catch (error) {
+          input.checked = !enabled;
+          status.textContent = error.message || 'Could not save setting';
+        } finally {
+          settingsRevision++;
+          delete input.dataset.saving;
+          input.disabled = false;
+        }
+      }));
+      setInterval(refreshPeers, 2000);
+    }
+
     document.querySelectorAll('[data-delete-alias]').forEach((button) => {
       button.addEventListener('click', async function () {
         const alias = this.getAttribute('data-delete-alias');

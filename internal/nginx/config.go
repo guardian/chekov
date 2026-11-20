@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -20,6 +21,8 @@ type ConfigGenerator struct {
 	mu           sync.RWMutex
 	routes       []Route
 	routingError string
+	// DecorateRoutes is set before serving requests.
+	DecorateRoutes func([]Route) []Route
 }
 
 // NewConfigGenerator creates a new config generator.
@@ -33,6 +36,7 @@ func NewConfigGenerator(configPath, certPath, keyPath string) *ConfigGenerator {
 
 // Route represents a route to be proxied.
 type Route struct {
+	ImportedFrom    string
 	ConfiguredAlias bool
 	AutoAliasSource string
 	ContainerName   string
@@ -50,16 +54,34 @@ type Route struct {
 func (cg *ConfigGenerator) ApplyRoutes(routes []Route) error {
 	cg.mu.Lock()
 	defer cg.mu.Unlock()
+	if cg.DecorateRoutes != nil {
+		routes = cg.DecorateRoutes(routes)
+	}
+	return cg.applyRoutes(routes)
+}
 
-	cg.routes = make([]Route, len(routes))
-	copy(cg.routes, routes)
+func (cg *ConfigGenerator) RefreshDecoratedRoutes() (bool, error) {
+	cg.mu.Lock()
+	defer cg.mu.Unlock()
+	if cg.DecorateRoutes == nil {
+		return false, nil
+	}
+	routes := cg.DecorateRoutes(cg.routes)
+	if slices.Equal(routes, cg.routes) {
+		return false, nil
+	}
+	return true, cg.applyRoutes(routes)
+}
 
+func (cg *ConfigGenerator) applyRoutes(routes []Route) error {
 	content := cg.renderConfig(routes)
 	err := cg.writeConfig(content)
 	if err != nil {
 		cg.routingError = "Failed to write routing configuration: " + err.Error()
+		return err
 	}
-	return err
+	cg.routes = slices.Clone(routes)
+	return nil
 }
 
 func (cg *ConfigGenerator) RoutingError() string {

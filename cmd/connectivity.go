@@ -148,15 +148,13 @@ func probeConnectivity(ctx context.Context, route nginx.Route) ConnectivityResul
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	key := routeConnectivityKey(route)
-	transport := &http.Transport{
-		// Match Nginx's upstream TLS policy, not the public endpoint certificate.
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: !key.VerifySSL, ServerName: key.VerifyName},
-	}
+	transport := newConnectivityTransport(key)
 	defer transport.CloseIdleConnections()
 	client := &http.Client{
 		Transport:     transport,
 		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
 	}
+
 	address := (&url.URL{Scheme: key.Protocol, Host: net.JoinHostPort(key.Host, strconv.Itoa(key.Port)), Path: "/"}).String()
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, address, nil)
 	if err != nil {
@@ -171,6 +169,7 @@ func probeConnectivity(ctx context.Context, route nginx.Route) ConnectivityResul
 		result.Detail = "Backend returned " + response.Status + ". This checks connectivity, not application health."
 		return result
 	}
+
 	result.Detail = err.Error()
 	var dns *net.DNSError
 	var cert *tls.CertificateVerificationError
@@ -191,4 +190,11 @@ func probeConnectivity(ctx context.Context, route nginx.Route) ConnectivityResul
 		result.Summary = "Connection failed"
 	}
 	return result
+}
+
+func newConnectivityTransport(key connectivityKey) *http.Transport {
+	return &http.Transport{
+		// Match Nginx's upstream TLS policy, not the public endpoint certificate.
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: !key.VerifySSL, ServerName: key.VerifyName},
+	}
 }

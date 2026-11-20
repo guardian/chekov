@@ -15,6 +15,7 @@ var aliasHostnameLabelRE = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`)
 
 type AliasEntry struct {
 	Automatic      bool
+	Imported       bool
 	Configured     bool
 	SourceHostname string
 	AliasHostname  string
@@ -188,7 +189,7 @@ func withoutAutomaticAliases(routes []nginx.Route) []nginx.Route {
 }
 
 func (m *AliasManager) mergeAllAliases(routes []nginx.Route, rows []ContainerDiagnostic, baseDomain string) []nginx.Route {
-	base := withoutAutomaticAliases(routes)
+	base := withoutAutomaticAliases(withoutImportedAliases(routes))
 	items := m.Snapshot()
 	out := mergeManualAliases(base, items)
 	manual := make(map[string]bool)
@@ -244,6 +245,9 @@ func (m *AliasManager) listedAliases(routes []nginx.Route) []AliasEntry {
 	items := append([]AliasEntry(nil), m.configured...)
 	items = append(items, m.Snapshot()...)
 	for _, route := range routes {
+		if route.ImportedFrom != "" {
+			items = append(items, AliasEntry{Imported: true, SourceHostname: route.ImportedFrom, AliasHostname: route.Hostname})
+		}
 		if route.AutoAliasSource != "" {
 			items = append(items, AliasEntry{
 				Automatic:      true,

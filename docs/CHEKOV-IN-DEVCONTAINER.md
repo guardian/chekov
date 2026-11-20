@@ -117,3 +117,8 @@ after a Chekov restart.
    port mapping on the Dev Container or laptop is needed.
 3. Open `https://inner-test.local.dev-gutools.co.uk/` or call your API's
    endpoint at that hostname.
+
+To skip manually adding service aliases on outer Chekov, start inner Chekov
+with `-e CHEKOV_EXPORT_ALIASES=inner-test` and check **Fetch aliases** on the
+outer route that targets the Dev Container's port `8080`. The inner UI alias
+is still configured separately with `CHEKOV_ALIASES`.

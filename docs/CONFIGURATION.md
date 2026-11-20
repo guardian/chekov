@@ -108,6 +108,30 @@ retries when routes are refreshed. Invalid pairs or duplicate alias names
 prevent the controller from starting. Edit the environment variable and
 recreate the container to change configured aliases.
 
+### CHEKOV_EXPORT_ALIASES and CHEKOV_PEER_STATE_FILE
+
+On inner Chekov, set `CHEKOV_EXPORT_ALIASES=inner-test,another-service` to
+share those existing service hostnames with peers. By default no hostnames
+are shared. Only hostnames are exported; tunnels, Chekov's UI, and routes
+imported from other peers are excluded.
+
+On outer Chekov, open **Aliases** and check **Fetch aliases** next to the
+trusted route that points to inner Chekov. Both instances must use the same
+base domain. Checking the box checks that service for a valid export. If the
+check fails, the box is cleared and shows **No compatible export**; Chekov
+logs the reason and does not poll the service. Click again to retry. An empty
+export is valid. Fetches use the selected route's backend and TLS policy. Local
+routes and aliases win, as do reserved configured names; conflicting exports
+from multiple peers are skipped. Unchecking removes that peer's imports.
+A non-Chekov response from a previously enabled peer leaves the setting enabled for future retries, without
+publishing any aliases. Withdrawn names are removed on the next successful
+fetch; temporary failures retain the last successful result for up to 45 seconds
+(rechecked on the polling interval).
+
+Checkbox settings are saved in `/var/lib/chekov/peer-aliases.json`. Mount
+`/var/lib/chekov` on a volume to retain settings across container replacement,
+or set `CHEKOV_PEER_STATE_FILE` to a different writable path.
+
 ### DEBOUNCE_MS
 
 Debounce period for Docker event processing.

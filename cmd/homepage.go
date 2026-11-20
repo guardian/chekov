@@ -674,6 +674,9 @@ func endpointTunnelDescription(route nginx.Route, tunnelManager *TunnelManager) 
 }
 
 func endpointDescription(route nginx.Route, provider, status string, diagnostics []ContainerDiagnostic, tunnelManager *TunnelManager, aliasManager *AliasManager) string {
+	if route.ImportedFrom != "" {
+		return fmt.Sprintf("Imported alias via %s", route.ImportedFrom)
+	}
 	if route.AutoAliasSource != "" {
 		return fmt.Sprintf("Automatic alias for endpoint %s", route.AutoAliasSource)
 	}

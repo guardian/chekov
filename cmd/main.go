@@ -80,7 +80,16 @@ func main() {
 	}
 	tunnelManager.aliasManager = aliasManager
 	tunnelManager.BindConfig(*baseDomain, configGen)
-	startHomepageServer(ctx, "/etc/nginx/nginx.conf", *nginxConfigPath, configGen, homepageState, tunnelManager, aliasManager, baseDomain)
+	peerPath := os.Getenv("CHEKOV_PEER_STATE_FILE")
+	if peerPath == "" {
+		peerPath = "/var/lib/chekov/peer-aliases.json"
+	}
+	peers, err := newPeerAliases(peerPath, *baseDomain, os.Getenv("CHEKOV_EXPORT_ALIASES"), aliasManager, configGen)
+	if err != nil {
+		log.Fatalf("Configure peer aliases: %v", err)
+	}
+	configGen.DecorateRoutes = peers.decorate
+	startHomepageServer(ctx, "/etc/nginx/nginx.conf", *nginxConfigPath, configGen, homepageState, tunnelManager, aliasManager, baseDomain, peers)
 
 	identifier := discovery.NewIdentifier()
 	proxyID := os.Getenv("PROXY_CONTAINER_ID")
@@ -107,6 +116,7 @@ func main() {
 
 	log.Println("Performing initial reconciliation")
 	reconcileRoutes(ctx, dockerClient, identifier, resolver, configGen, homepageState, proxyID, *baseDomain, tunnelManager, aliasManager)
+	go peers.run(ctx)
 	startAWSProfileCleanup(ctx, 5*time.Minute)
 
 	go watchEvents(ctx, dockerClient, identifier, resolver, configGen, homepageState, proxyID, *baseDomain, tunnelManager, aliasManager, time.Duration(*debounceMs)*time.Millisecond)
@@ -209,8 +219,10 @@ func addHomepageAndAliasRoutes(routes []nginx.Route, baseDomain string, aliasMan
 	return routes
 }
 
-func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath string, configGen *nginx.ConfigGenerator, homepageState *DiagnosticsState, tunnelManager *TunnelManager, aliasManager *AliasManager, baseDomain *string) {
+func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath string, configGen *nginx.ConfigGenerator, homepageState *DiagnosticsState, tunnelManager *TunnelManager, aliasManager *AliasManager, baseDomain *string, peers *peerAliases) {
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET "+peerExportPath, peers.export)
+	mux.HandleFunc("/api/peer-aliases", peers.settings)
 	connectivity := newConnectivityMonitor(ctx, configGen.CurrentRoutes, tunnelManager)
 	logPath := filepath.Join("/var/log/chekov", "chekov.log")
 	staticDir := resolveStaticDir()
@@ -269,7 +281,7 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 			sourceHostname := strings.TrimSpace(r.FormValue("sourceHostname"))
 			alias := strings.TrimSpace(r.FormValue("alias"))
 			routes := configGen.CurrentRoutes()
-			if _, err := aliasManager.AddAlias(sourceHostname, alias, *baseDomain, withoutAutomaticAliases(routes)); err != nil {
+			if _, err := aliasManager.AddAlias(sourceHostname, alias, *baseDomain, withoutAutomaticAliases(withoutImportedAliases(routes))); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
@@ -335,9 +347,9 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		current := configGen.CurrentRoutes()
-		routes := filterAliasHostnameRoutes(withoutAutomaticAliases(current), "chekov."+*baseDomain)
+		routes := filterAliasHostnameRoutes(withoutAutomaticAliases(withoutImportedAliases(current)), "chekov."+*baseDomain)
 		suggestions := aliasSuggestionsForRoutes(routes, homepageState.Snapshot())
-		_, _ = w.Write([]byte(renderAliasPage(r.Host, routeHostnames(routes), aliasManager.listedAliases(current), suggestions)))
+		_, _ = w.Write([]byte(renderAliasPage(r.Host, routeHostnames(routes), aliasManager.listedAliases(current), suggestions, peers.views(current)...)))
 	})
 
 	homepageSnapshot := func() ([]ContainerDiagnostic, []PublishedEndpointRow, uint64) {

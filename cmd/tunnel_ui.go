@@ -95,7 +95,7 @@ func renderTunnelPage(host string, cfg AWSConfig, tunnels []TunnelEntry, mappedH
 	return b.String()
 }
 
-func renderAliasPage(host string, mappedHostnames []string, aliases []AliasEntry, suggestions map[string][]string) string {
+func renderAliasPage(host string, mappedHostnames []string, aliases []AliasEntry, suggestions map[string][]string, peers ...peerView) string {
 	var b strings.Builder
 	b.WriteString(renderPageHead(host, "Aliases"))
 	b.WriteString(renderMainStylesheetLink())
@@ -136,7 +136,9 @@ func renderAliasPage(host string, mappedHostnames []string, aliases []AliasEntry
 			b.WriteString("<tr>")
 			b.WriteString("<td>" + html.EscapeString(alias.SourceHostname) + "</td>")
 			b.WriteString("<td>" + html.EscapeString(alias.AliasHostname) + "</td>")
-			if alias.Configured {
+			if alias.Imported {
+				b.WriteString("<td>Imported</td>")
+			} else if alias.Configured {
 				b.WriteString("<td>Configured</td>")
 			} else if alias.Automatic {
 				b.WriteString("<td>Automatic</td>")
@@ -147,6 +149,18 @@ func renderAliasPage(host string, mappedHostnames []string, aliases []AliasEntry
 		}
 	}
 	b.WriteString("</tbody></table></div>")
+	if len(peers) > 0 {
+		b.WriteString(`<h2>Peer aliases</h2><p class="muted">Keep aliases in sync with a trusted Chekov instance.</p><div class="table-wrap"><table><thead><tr><th>Mapped domain</th><th>Fetch aliases</th><th>Status</th></tr></thead><tbody>`)
+		for _, peer := range peers {
+			host := html.EscapeString(peer.Host)
+			b.WriteString(`<tr><td>` + host + `</td><td><label><input type="checkbox" data-fetch-aliases="` + host + `"`)
+			if peer.Enabled {
+				b.WriteString(` checked`)
+			}
+			b.WriteString(`> Fetch aliases <span class="sr-only">from ` + host + `</span></label></td><td data-peer-status data-imported="` + html.EscapeString(peer.Imported) + `" role="status">` + html.EscapeString(peer.Status) + `</td></tr>`)
+		}
+		b.WriteString(`</tbody></table></div>`)
+	}
 	b.WriteString(renderHelpSection("aliases"))
 	b.WriteString("<script src=\"/static/app.js\"></script>")
 	b.WriteString("</body></html>")
