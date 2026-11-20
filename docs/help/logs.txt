@@ -1,17 +1,3 @@
-Logs page
+This page shows recent Chekov application log lines, with the newest lines first. It displays 50 lines by default; add ?count=100 to the URL to request a different number, up to 200.
 
-This page displays the recent chekov log output, which is useful when diagnosing route discovery, configuration errors, or tunnel startup problems.
-
-How to use it:
-- Newest log lines are at the top.
-- Look for failed route generation, Docker inspection errors, tunnel startup errors, or Nginx validation failures.
-
-Common troubleshooting:
-- If a route is missing, look for discovery or port detection errors.
-- If a tunnel fails, look for AWS SSM or session-manager-plugin errors.
-- If Nginx reloads fail, inspect the generated config and validation output.
-
-The logs are a good first place to check before making changes to the app config or tunnel setup.
-
-In order to add logging, edit the source to include more `log.Println("Raw Value:", raw)` statements, then rebuild the
-container and check the logs page for the output.
+Use the logs to investigate route discovery, Nginx configuration or reload errors, AWS profile validation, and tunnel or SSM startup failures. The output is diagnostic: use the Debug page for container discovery details and the generated-config links to inspect active routing.

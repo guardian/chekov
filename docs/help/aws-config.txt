@@ -1,16 +1,9 @@
-AWS config page
-
-This page stores the bootstrap shell commands that initialize your AWS credentials and default profile details for tunnel creation.
+Set up AWS credentials for commands and tunnels that run inside the Chekov container.
 
 How to use it:
-- Copy the AWS login or credential bootstrap commands you want to run in this container, then choose Save from clipboard.
-- To enter commands directly, choose Enter credentials manually and then Save.
-- Saving runs aws sts get-caller-identity for each discovered credential profile.
-- A success message appears only after STS validation succeeds. Expired or otherwise invalid profiles are removed from the credentials file and their validation errors are shown on screen.
+- Copy your AWS credential setup command, then choose Save from clipboard. To enter it yourself, choose Enter credentials manually and then Save.
+- The command must begin with "aws configure". Chekov runs it in the container, not on your host computer.
+- Chekov checks the discovered credential profiles with AWS STS. The command output and any errors appear on this page; profiles whose credentials fail validation are removed from the credentials file.
+- After setup, select a validated profile on the Tunnels, Local shell, Bastion shell, or Command Generator page.
 
-Requirements:
-- The AWS profile, region, and any SSO or credential helpers must be valid for the environment where the tunnel is created.
-
-If the command or STS check fails, the save status shows the failure details. STS validation requires a working connection to AWS; connection failures are also reported as errors.
-
-After this is configured, the Tunnels page can create outbound SSM or host-tunnel sessions without re-entering AWS credentials each time.
+The selected profile must be authorized for the AWS operations you intend to run. STS validation requires network access to AWS. Do not copy host-machine credentials into this container unless that is intended for your environment.

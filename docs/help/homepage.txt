@@ -1,42 +1,10 @@
-Home page overview
-
-This page is the main status dashboard for chekov. It shows each discovered container or tunnel, whether it was routed successfully, why it was or was not included, and the hostnames generated for it.
+The home page lists the hostnames Chekov currently routes and a short description of each service.
 
 How to use it:
-- Follow Endpoint links to open a service; Service describes its source.
-- Connectivity shows background checks from inside Chekov to each backend, refreshed every 15 seconds with a three-second timeout.
-- Responding (including HTTP 401, 404 or 500) means the backend answered, not that the application is healthy.
-- Hover over Connectivity for error details and the last-check time. Each hostname is checked separately, even when aliases share a backend.
-- Stopped tunnels are not probed or started automatically. Enter credentials and start them explicitly.
-- Routing configuration errors appear separately above the table. Connectivity checks do not test the browser-to-Nginx connection.
-- Use the Debug page for discovery metadata and skipped routes.
+- Select an endpoint to open that service in a new tab.
+- Connectivity is checked from inside Chekov against each backend. The check runs about every 15 seconds and has a three-second timeout.
+- "Responding - HTTP ..." means the backend returned an HTTP response; even a 4xx or 5xx response is not a health check. DNS, connection, timeout, and TLS failures are shown separately.
+- Routes sharing the same backend share a check. A stopped or failed tunnel is shown as inactive and is not probed or started automatically.
+- Routing configuration errors appear above the endpoint list. Connectivity checks do not test whether your browser can reach Chekov.
 
-Common setup requirements:
-- The app container and devcontainer must be running.
-- For containers to route correctly, Docker should expose or forward ports that the proxy can discover.
-
-
-Advanced requirements:
-*For multi-service devcontainers, configure forwardPorts and portsAttributes:*
-
-```
-  "portsAttributes" : {
-    "9100" : {
-      "label" : "janus"
-    },
-    "1234" : {
-      "label" : "janus-frontend"
-    }
-  },
-```
-
-When a devcontainer needs to reach the host machine, add runArgs such as:
-
-```
-"runArgs": [
-  "--add-host=host.docker.internal:host-gateway",
-  "--add-host=myservice.local.dev-gutools.co.uk:host-gateway"
-]
-```
-
-If a route is missing, inspect the container metadata and verify the port is being forwarded or published correctly.
+For missing routes or other discovery details, use the Debug page. Use Logs to investigate startup and configuration errors; the generated Nginx config links show what Chekov is currently serving.

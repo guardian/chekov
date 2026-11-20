@@ -1,21 +1,11 @@
-Aliases page
-
-This page creates and manages additional hostnames that point at an existing mapped service without changing the original route.
+Create another hostname for an existing route. An alias uses the same backend as its selected source; it does not replace the source hostname.
 
 How to use it:
-- Choose a mapped domain from the list to use as the source host.
-- Choose a suggested project name from the Alias combobox, or type your own hostname such as hello.local.dev-gutools.co.uk.
-- Suggestions come from the selected container's Dev Container name metadata or project folder, including VS Code and IntelliJ labels. They do not change the original route.
-- Click Add alias to create the secondary hostname and reload the page.
-- Use Delete to remove a manual alias. Automatic aliases come from a Dev Container's metadata name when it has one route and no hostname collision.
-- Docker labels can also declare automatic aliases: chekov.aliases for a single route, or chekov.aliases.<container-port> for a specific port. Use a comma-separated list for multiple names.
-- Primary routes and manual aliases take precedence. If multiple containers claim the same automatic alias, none gets it.
+- Select a currently mapped hostname, then choose a suggestion or enter an alias. Enter either a short name (for example, api-preview) or a full hostname under Chekov's base domain.
+- Click Add alias. Chekov validates that the source is mapped and the new hostname is valid and unused, then reloads the routing configuration.
+- Use Delete to remove a manually created alias. Automatic and imported aliases are informational and cannot be deleted here.
+- Suggestions are hints based on container and Dev Container metadata; a suggestion is not active until you add it.
 
-Requirements:
-- The source hostname must already be mapped and active in the current chekov configuration.
-- When using POST /api/aliases, sourceHostname and alias may omit the configured base domain. For example, sourceHostname=api and alias=api-public use api.local.dev-gutools.co.uk and api-public.local.dev-gutools.co.uk with the default base domain.
-- To alias Chekov's own UI, use POST /api/aliases with sourceHostname=chekov. The alias survives route refreshes, although Chekov's UI is not listed in the source dropdown.
-- The alias must be a valid hostname and must not already be in use.
-- The generated nginx config must reload successfully before the alias becomes available.
+Aliases can also be generated from Docker labels (chekov.aliases or chekov.aliases.<container-port>) or from a Dev Container name when there is exactly one unambiguous route and no hostname conflict. Label aliases only work when the source port already has a route; conflicts are skipped.
 
-Aliases are useful when one service needs a friendly or temporary hostname while still sharing the same underlying route and backend.
+If trusted peer Chekov instances are configured, the Peer aliases section lets you enable fetching aliases for a mapped service. Chekov imports available names from that peer and skips names that conflict with local routes or aliases.

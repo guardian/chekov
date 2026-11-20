@@ -1,17 +1,10 @@
-Command generator page
-
-This page builds copy-ready shell commands for working with the local chekov environment and the AWS tunnel helper tooling.
+Build a copy-ready Docker command for running one of Chekov's shell tools inside a container.
 
 How to use it:
-- Set the container name, user, profile, stack, stage, app, region, and any host-tunnel parameters.
-- Pick shell or host-tunnel as the command type.
-- Copy the generated command and paste it into a running shell when needed.
+- Choose the target container, execution user, command, profile, and region. Add Stack, Stage, and App when the selected tool connects to a remote EC2 instance.
+- "shell" runs Chekov's SSM shell helper; it finds a running EC2 instance by App, Stack, and Stage tags and opens an interactive SSM session.
+- "bash" opens Bash inside the selected container and sets AWS_PROFILE and AWS_REGION. These fields use the generator defaults when left blank.
+- "host-tunnel" starts SSM port forwarding to the specified ALB. Supply the ALB, local port, and tunnel name as well as the target metadata.
+- Copy the generated command and run it in a terminal that has Docker access.
 
-Requirements:
-- The container must be able to run Docker exec commands as the selected user.
-- For host-tunnel creation, the target ALB, local port, and tunnel name are required.
-- If using a local AWS profile, the profile must exist in the container’s AWS configuration and match the bootstrap setup in the AWS Config page.
-- For port forwarding or remote host access, ensure the underlying tunnel tool and AWS profile are configured correctly before running the generated command.
-
-This generator is intended to save time when you need to reproduce a working command outside the browser UI.
-
+The selected container must be running and contain the requested helper. AWS profiles and permissions must be configured inside that container; the generator does not copy credentials from your host.
