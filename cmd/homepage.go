@@ -20,12 +20,13 @@ import (
 )
 
 type ContainerDiagnostic struct {
-	Name             string
-	Status           string
-	Reason           string
-	Routes           string
-	Metadata         string
-	AliasSuggestions []string
+	Name              string
+	Status            string
+	Reason            string
+	Routes            string
+	Metadata          string
+	AliasSuggestions  []string
+	DevContainerNames []string
 }
 
 type DiagnosticsState struct {
@@ -94,11 +95,13 @@ func diagnoseContainer(
 		forwardedSet[port] = true
 	}
 
+	names, suggestions := identifier.ProjectAliasNames(containerInfo.Labels)
 	diag := ContainerDiagnostic{
-		Name:             containerInfo.Name,
-		Status:           "skipped",
-		Metadata:         summarizeContainerMetadata(containerInfo),
-		AliasSuggestions: identifier.SuggestProjectNames(containerInfo.Labels),
+		Name:              containerInfo.Name,
+		Status:            "skipped",
+		Metadata:          summarizeContainerMetadata(containerInfo),
+		AliasSuggestions:  suggestions,
+		DevContainerNames: names,
 	}
 
 	isDev := identifier.IsDevContainer(containerInfo.Name, containerInfo.Labels)
@@ -671,6 +674,9 @@ func endpointTunnelDescription(route nginx.Route, tunnelManager *TunnelManager) 
 }
 
 func endpointDescription(route nginx.Route, provider, status string, diagnostics []ContainerDiagnostic, tunnelManager *TunnelManager, aliasManager *AliasManager) string {
+	if route.AutoAliasSource != "" {
+		return fmt.Sprintf("Automatic alias for endpoint %s", route.AutoAliasSource)
+	}
 	if aliasManager != nil {
 		for _, entry := range aliasManager.Snapshot() {
 			if strings.EqualFold(entry.AliasHostname, route.Hostname) {

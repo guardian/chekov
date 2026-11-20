@@ -33,15 +33,16 @@ func NewConfigGenerator(configPath, certPath, keyPath string) *ConfigGenerator {
 
 // Route represents a route to be proxied.
 type Route struct {
-	ContainerName string
-	Hostname      string
-	TargetHost    string
-	TargetPort    int
-	Protocol      string
-	VerifySSL     bool
-	VerifyName    string
-	CertPath      string
-	KeyPath       string
+	AutoAliasSource string
+	ContainerName   string
+	Hostname        string
+	TargetHost      string
+	TargetPort      int
+	Protocol        string
+	VerifySSL       bool
+	VerifyName      string
+	CertPath        string
+	KeyPath         string
 }
 
 // ApplyRoutes stores the route set, renders config, and writes it atomically under one lock.

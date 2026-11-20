@@ -7,7 +7,8 @@ How to use it:
 - Choose a suggested project name from the Alias combobox, or type your own hostname such as hello.local.dev-gutools.co.uk.
 - Suggestions come from the selected container's Dev Container name metadata or project folder, including VS Code and IntelliJ labels. They do not change the original route.
 - Click Add alias to create the secondary hostname and reload the page.
-- Use Delete on any alias entry to remove it when it is no longer needed.
+- Use Delete to remove a manual alias. Automatic aliases come from a Dev Container's metadata name when it has one route and no hostname collision.
+- Primary routes and manual aliases take precedence. If multiple containers claim the same automatic alias, none gets it.
 
 Requirements:
 - The source hostname must already be mapped and active in the current chekov configuration.

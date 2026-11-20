@@ -168,7 +168,7 @@ func reconcileRoutes(
 		routes = append(routes, tunnelManager.NginxRoutes(baseDomain)...)
 	}
 
-	routes = addHomepageAndAliasRoutes(routes, baseDomain, aliasManager)
+	routes = addHomepageAndAliasRoutes(routes, baseDomain, aliasManager, homepageRows)
 	routes = ensureRouteWildcardCerts(routes, baseDomain)
 
 	homepageState.Set(homepageRows)
@@ -191,14 +191,14 @@ func reconcileRoutes(
 	log.Printf("Successfully updated routes with %d entries\n", len(routes))
 }
 
-func addHomepageAndAliasRoutes(routes []nginx.Route, baseDomain string, aliasManager *AliasManager) []nginx.Route {
+func addHomepageAndAliasRoutes(routes []nginx.Route, baseDomain string, aliasManager *AliasManager, rows []ContainerDiagnostic) []nginx.Route {
 	routes = append(routes, nginx.Route{
 		Hostname:   "chekov." + baseDomain,
 		TargetHost: "127.0.0.1",
 		TargetPort: 18080,
 	})
 	if aliasManager != nil {
-		routes = aliasManager.MergeRoutes(routes)
+		routes = aliasManager.mergeAllAliases(routes, rows, baseDomain)
 	}
 	return routes
 }
@@ -262,11 +262,12 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 			}
 			sourceHostname := strings.TrimSpace(r.FormValue("sourceHostname"))
 			alias := strings.TrimSpace(r.FormValue("alias"))
-			if _, err := aliasManager.AddAlias(sourceHostname, alias, *baseDomain, configGen.CurrentRoutes()); err != nil {
+			routes := configGen.CurrentRoutes()
+			if _, err := aliasManager.AddAlias(sourceHostname, alias, *baseDomain, withoutAutomaticAliases(routes)); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			merged := aliasManager.MergeRoutes(configGen.CurrentRoutes())
+			merged := aliasManager.mergeAllAliases(routes, homepageState.Snapshot(), *baseDomain)
 			merged = ensureRouteWildcardCerts(merged, *baseDomain)
 			if err := configGen.ApplyRoutes(merged); err != nil {
 				http.Error(w, "failed to add alias routes: "+err.Error(), http.StatusInternalServerError)
@@ -304,7 +305,7 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 		}
 		baseRoutes := configGen.CurrentRoutes()
 		baseRoutes = filterAliasHostnameRoutes(baseRoutes, alias)
-		merged := aliasManager.MergeRoutes(baseRoutes)
+		merged := aliasManager.mergeAllAliases(baseRoutes, homepageState.Snapshot(), *baseDomain)
 		merged = ensureRouteWildcardCerts(merged, *baseDomain)
 		if err := configGen.ApplyRoutes(merged); err != nil {
 			http.Error(w, "failed to remove alias routes: "+err.Error(), http.StatusInternalServerError)
@@ -327,9 +328,10 @@ func startHomepageServer(ctx context.Context, nginxBasePath, generatedConfigPath
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		routes := filterAliasHostnameRoutes(configGen.CurrentRoutes(), "chekov."+*baseDomain)
+		current := configGen.CurrentRoutes()
+		routes := filterAliasHostnameRoutes(withoutAutomaticAliases(current), "chekov."+*baseDomain)
 		suggestions := aliasSuggestionsForRoutes(routes, homepageState.Snapshot())
-		_, _ = w.Write([]byte(renderAliasPage(r.Host, routeHostnames(routes), aliasManager.Snapshot(), suggestions)))
+		_, _ = w.Write([]byte(renderAliasPage(r.Host, routeHostnames(routes), aliasManager.listedAliases(current), suggestions)))
 	})
 
 	homepageSnapshot := func() ([]ContainerDiagnostic, []PublishedEndpointRow, uint64) {
