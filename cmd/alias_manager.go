@@ -13,6 +13,7 @@ import (
 var aliasHostnameLabelRE = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`)
 
 type AliasEntry struct {
+	Automatic      bool
 	SourceHostname string
 	AliasHostname  string
 	TargetHost     string
@@ -25,8 +26,8 @@ type AliasEntry struct {
 }
 
 type AliasManager struct {
-	mu     sync.RWMutex
-	items  []AliasEntry
+	mu    sync.RWMutex
+	items []AliasEntry
 }
 
 func NewAliasManager() *AliasManager {
@@ -84,6 +85,9 @@ func (m *AliasManager) AddAlias(sourceHostname string, rawAlias string, baseDoma
 			return AliasEntry{}, fmt.Errorf("alias %q already exists", aliasHostname)
 		}
 	}
+	if findRouteByHostname(routes, aliasHostname) != nil {
+		return AliasEntry{}, fmt.Errorf("hostname %q is already mapped", aliasHostname)
+	}
 
 	entry := AliasEntry{
 		SourceHostname: sourceHostname,
@@ -101,10 +105,12 @@ func (m *AliasManager) AddAlias(sourceHostname string, rawAlias string, baseDoma
 }
 
 func (m *AliasManager) MergeRoutes(routes []nginx.Route) []nginx.Route {
+	return mergeManualAliases(routes, m.Snapshot())
+}
+
+func mergeManualAliases(routes []nginx.Route, items []AliasEntry) []nginx.Route {
 	out := append([]nginx.Route(nil), routes...)
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	for _, item := range m.items {
+	for _, item := range items {
 		source := findRouteByHostname(routes, item.SourceHostname)
 		if source == nil {
 			continue
@@ -125,6 +131,80 @@ func (m *AliasManager) MergeRoutes(routes []nginx.Route) []nginx.Route {
 		out = append(out, aliasRoute)
 	}
 	return out
+}
+
+func withoutAutomaticAliases(routes []nginx.Route) []nginx.Route {
+	out := make([]nginx.Route, 0, len(routes))
+	for _, route := range routes {
+		if route.AutoAliasSource == "" {
+			out = append(out, route)
+		}
+	}
+	return out
+}
+
+func (m *AliasManager) mergeAllAliases(routes []nginx.Route, rows []ContainerDiagnostic, baseDomain string) []nginx.Route {
+	base := withoutAutomaticAliases(routes)
+	items := m.Snapshot()
+	out := mergeManualAliases(base, items)
+	manual := make(map[string]bool)
+	occupied := make(map[string]bool, len(out))
+	for _, entry := range items {
+		manual[entry.AliasHostname] = true
+		occupied[entry.AliasHostname] = true
+	}
+	for _, route := range out {
+		occupied[strings.ToLower(route.Hostname)] = true
+	}
+
+	byContainer := make(map[string][]nginx.Route)
+	primaryCount := make(map[string]int, len(base))
+	for _, route := range base {
+		if route.ContainerName != "" && !manual[route.Hostname] {
+			byContainer[route.ContainerName] = append(byContainer[route.ContainerName], route)
+		}
+		primaryCount[strings.ToLower(route.Hostname)]++
+	}
+	claims := make(map[string][]nginx.Route)
+	for _, row := range rows {
+		targets := byContainer[row.Name]
+		if len(targets) != 1 || len(row.DevContainerNames) != 1 ||
+			primaryCount[strings.ToLower(targets[0].Hostname)] != 1 {
+			continue
+		}
+		name, err := normalizeAliasHostname(row.DevContainerNames[0], strings.ToLower(baseDomain))
+		if err == nil && !occupied[name] {
+			claims[name] = append(claims[name], targets[0])
+		}
+	}
+	names := make([]string, 0, len(claims))
+	for name, targets := range claims {
+		if len(targets) == 1 {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		route := claims[name][0]
+		route.AutoAliasSource = route.Hostname
+		route.Hostname = name
+		out = append(out, route)
+	}
+	return out
+}
+
+func (m *AliasManager) listedAliases(routes []nginx.Route) []AliasEntry {
+	items := m.Snapshot()
+	for _, route := range routes {
+		if route.AutoAliasSource != "" {
+			items = append(items, AliasEntry{
+				Automatic:      true,
+				SourceHostname: route.AutoAliasSource,
+				AliasHostname:  route.Hostname,
+			})
+		}
+	}
+	return items
 }
 
 func (m *AliasManager) RemoveAlias(aliasHostname string) bool {

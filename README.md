@@ -158,9 +158,12 @@ alias:  https://api-public.local.dev-gutools.co.uk
 
 This is handy for customer-facing names, temporary URLs, or legacy aliases.
 
-The Alias field offers project-name suggestions for the selected container using
-VS Code or IntelliJ Dev Container metadata. Choose a suggestion or type your own
-alias; generated container hostnames stay unchanged.
+Chekov automatically adds a Dev Container's metadata name as an alias when it
+identifies a single route and the name is not already claimed. Primary routes
+and manual aliases take precedence, and generated container hostnames stay
+unchanged. For containers with multiple routes, use `portsAttributes` to name
+each port or choose a source in the Aliases UI. Folder names are suggestions
+only.
 
 ## Access from inside the container
 

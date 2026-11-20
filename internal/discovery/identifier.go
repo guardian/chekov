@@ -151,8 +151,14 @@ func (i *Identifier) ExtractProjectName(
 	return ""
 }
 
-// SuggestProjectNames offers metadata-derived aliases without changing route naming.
+// SuggestProjectNames includes folder-based suggestions in addition to explicit names.
 func (i *Identifier) SuggestProjectNames(labels map[string]string) []string {
+	_, suggestions := i.ProjectAliasNames(labels)
+	return suggestions
+}
+
+// ProjectAliasNames separates explicit metadata names from broader manual suggestions.
+func (i *Identifier) ProjectAliasNames(labels map[string]string) (explicit, suggestions []string) {
 	names := []string{}
 	seen := map[string]bool{}
 	add := func(raw string) {
@@ -177,6 +183,8 @@ func (i *Identifier) SuggestProjectNames(labels map[string]string) []string {
 			}
 		}
 	}
+	explicit = append([]string(nil), names...)
+	sort.Strings(explicit)
 	for _, key := range []string{"devcontainer.local_folder", "com.intellij.devcontainer.sources.path"} {
 		if folder := strings.TrimSpace(labels[key]); folder != "" {
 			base := filepath.Base(folder)
@@ -186,7 +194,7 @@ func (i *Identifier) SuggestProjectNames(labels map[string]string) []string {
 		}
 	}
 	sort.Strings(names)
-	return names
+	return explicit, names
 }
 
 // SanitizeHostname sanitizes a dot-separated DNS hostname.

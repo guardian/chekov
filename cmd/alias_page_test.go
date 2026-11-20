@@ -12,13 +12,13 @@ import (
 func TestHomepageAliasSurvivesRouteRebuild(t *testing.T) {
 	const baseDomain = "local.dev"
 	manager := NewAliasManager()
-	current := addHomepageAndAliasRoutes(nil, baseDomain, manager)
+	current := addHomepageAndAliasRoutes(nil, baseDomain, manager, nil)
 	if _, err := manager.AddAlias("chekov", "inner-chekov", baseDomain, current); err != nil {
 		t.Fatal(err)
 	}
 
 	service := nginx.Route{Hostname: "api." + baseDomain, TargetHost: "api", TargetPort: 8080}
-	rebuilt := addHomepageAndAliasRoutes([]nginx.Route{service}, baseDomain, manager)
+	rebuilt := addHomepageAndAliasRoutes([]nginx.Route{service}, baseDomain, manager, nil)
 	want := []nginx.Route{
 		service,
 		{Hostname: "chekov." + baseDomain, TargetHost: "127.0.0.1", TargetPort: 18080},
@@ -26,6 +26,80 @@ func TestHomepageAliasSurvivesRouteRebuild(t *testing.T) {
 	}
 	if !reflect.DeepEqual(rebuilt, want) {
 		t.Fatalf("rebuilt routes = %+v, want %+v", rebuilt, want)
+	}
+}
+
+func TestAutomaticDevContainerAlias(t *testing.T) {
+	const base = "local.dev"
+	const alias = "inner-chekov." + base
+	container := &discovery.ContainerInfo{
+		ID:       "container-1",
+		Name:     "zen_tu",
+		Networks: []string{"bridge"},
+		Labels: map[string]string{
+			"com.intellij.devcontainer.initial.model": `{"name":"inner-chekov","forwardPorts":[8080]}`,
+			"com.intellij.devcontainer.sources.path":  "/code/workspace-folder",
+		},
+	}
+	routes, row := diagnoseContainer(container, discovery.NewIdentifier(), discovery.NewNetworkResolver("proxy"), base)
+	if len(routes) != 1 || routes[0].Hostname != "zen-tu."+base {
+		t.Fatalf("unexpected primary routes: %+v", routes)
+	}
+	manager := NewAliasManager()
+	rows := []ContainerDiagnostic{row}
+	merged := addHomepageAndAliasRoutes(routes, base, manager, rows)
+	want := routes[0]
+	want.AutoAliasSource = want.Hostname
+	want.Hostname = alias
+	if got := findRouteByHostname(merged, alias); got == nil || *got != want || len(merged) != 3 {
+		t.Fatalf("expected unchanged primary, homepage and metadata alias: %+v", merged)
+	}
+	if got := manager.mergeAllAliases(merged, nil, base); findRouteByHostname(got, alias) != nil {
+		t.Fatalf("stale automatic alias was retained: %+v", got)
+	}
+	page := renderAliasPage("", nil, manager.listedAliases(merged), nil)
+	if !strings.Contains(page, "<td>"+alias+"</td><td>Automatic</td>") || strings.Contains(page, "data-delete-alias") {
+		t.Fatal("automatic alias should be listed without a delete action")
+	}
+
+	if _, err := manager.AddAlias("chekov", "inner-chekov", base, withoutAutomaticAliases(merged)); err != nil {
+		t.Fatal(err)
+	}
+	overridden := manager.mergeAllAliases(merged, rows, base)
+	if got := findRouteByHostname(overridden, alias); got == nil || got.AutoAliasSource != "" || got.TargetPort != 18080 {
+		t.Fatalf("manual alias did not take precedence: %+v", overridden)
+	}
+	manager.RemoveAlias(alias)
+	restored := manager.mergeAllAliases(filterAliasHostnameRoutes(overridden, alias), rows, base)
+	if got := findRouteByHostname(restored, alias); got == nil || *got != want {
+		t.Fatalf("automatic alias was not restored: %+v", restored)
+	}
+}
+
+func TestAutomaticAliasSkipsCollisionsAndAmbiguousTargets(t *testing.T) {
+	const base = "local.dev"
+	source := nginx.Route{Hostname: "primary." + base, ContainerName: "first", TargetPort: 8080}
+	other := nginx.Route{Hostname: "other." + base, ContainerName: "second", TargetPort: 8080}
+	first := ContainerDiagnostic{Name: "first", DevContainerNames: []string{"friendly"}}
+	for _, tt := range []struct {
+		name   string
+		routes []nginx.Route
+		rows   []ContainerDiagnostic
+	}{
+		{"existing route", []nginx.Route{source, {Hostname: "friendly." + base}}, []ContainerDiagnostic{first}},
+		{"ambiguous primary hostname", []nginx.Route{source, {Hostname: source.Hostname}}, []ContainerDiagnostic{first}},
+		{"built-in route", []nginx.Route{source}, []ContainerDiagnostic{{Name: "first", DevContainerNames: []string{"chekov"}}}},
+		{"duplicate metadata name", []nginx.Route{source, other}, []ContainerDiagnostic{first, {Name: "second", DevContainerNames: []string{"friendly"}}}},
+		{"multiple endpoints", []nginx.Route{source, {Hostname: "second-port." + base, ContainerName: "first", TargetPort: 9090}}, []ContainerDiagnostic{first}},
+		{"multiple metadata names", []nginx.Route{source}, []ContainerDiagnostic{{Name: "first", DevContainerNames: []string{"friendly", "other"}}}},
+		{"folder suggestion only", []nginx.Route{source}, []ContainerDiagnostic{{Name: "first", AliasSuggestions: []string{"friendly"}}}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got := addHomepageAndAliasRoutes(tt.routes, base, NewAliasManager(), tt.rows)
+			if len(got) != len(tt.routes)+1 {
+				t.Fatalf("unexpected automatic alias in %+v", got)
+			}
+		})
 	}
 }
 
