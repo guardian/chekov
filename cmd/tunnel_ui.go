@@ -136,7 +136,9 @@ func renderAliasPage(host string, mappedHostnames []string, aliases []AliasEntry
 			b.WriteString("<tr>")
 			b.WriteString("<td>" + html.EscapeString(alias.SourceHostname) + "</td>")
 			b.WriteString("<td>" + html.EscapeString(alias.AliasHostname) + "</td>")
-			if alias.Automatic {
+			if alias.Configured {
+				b.WriteString("<td>Configured</td>")
+			} else if alias.Automatic {
 				b.WriteString("<td>Automatic</td>")
 			} else {
 				b.WriteString("<td><button data-delete-alias=\"" + html.EscapeString(alias.AliasHostname) + "\">Delete</button></td>")

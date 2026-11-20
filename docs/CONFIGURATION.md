@@ -94,6 +94,20 @@ Defaults:
 /etc/nginx/mkcert/rootCA-key.pem
 ```
 
+### CHEKOV_ALIASES
+
+Optional comma-separated `alias=route` pairs. Both names can be short names
+under `BASE_DOMAIN` or full hostnames within it. For example,
+`CHEKOV_ALIASES='inner-chekov=chekov,public-api=api'` gives the Chekov UI
+and the `api` route additional hostnames.
+
+Configured aliases are restored on restart. Primary routes take precedence;
+configured names are reserved ahead of manual and automatic aliases. A missing
+or ambiguous target or a conflicting primary route is logged, and Chekov
+retries when routes are refreshed. Invalid pairs or duplicate alias names
+prevent the controller from starting. Edit the environment variable and
+recreate the container to change configured aliases.
+
 ### DEBOUNCE_MS
 
 Debounce period for Docker event processing.
