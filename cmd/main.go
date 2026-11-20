@@ -92,27 +92,9 @@ func main() {
 	startHomepageServer(ctx, "/etc/nginx/nginx.conf", *nginxConfigPath, configGen, homepageState, tunnelManager, aliasManager, baseDomain, peers)
 
 	identifier := discovery.NewIdentifier()
-	proxyID := os.Getenv("PROXY_CONTAINER_ID")
-	if proxyID == "" {
-		if hostname, err := os.Hostname(); err == nil && hostname != "" {
-			proxyID = hostname
-		}
-	}
-	if proxyID == "" {
-		proxyID = "unknown"
-	}
+	proxyID, proxyNetworks := resolveProxyIdentity(ctx, os.Hostname, dockerClient.InspectContainer)
 	resolver := discovery.NewNetworkResolver(proxyID)
-
-	if proxyID != "unknown" {
-		proxyInfo, err := dockerClient.InspectContainer(ctx, proxyID)
-		if err != nil {
-			log.Printf("WARNING: Failed to inspect proxy container %q: %v", proxyID, err)
-		} else if len(proxyInfo.NetworkSettings) > 0 {
-			resolver.SetProxyNetworks(proxyInfo.NetworkSettings)
-		} else {
-			log.Printf("WARNING: Proxy container %q has no inspectable networks", proxyID)
-		}
-	}
+	resolver.SetProxyNetworks(proxyNetworks)
 
 	log.Println("Performing initial reconciliation")
 	reconcileRoutes(ctx, dockerClient, identifier, resolver, configGen, homepageState, proxyID, *baseDomain, tunnelManager, aliasManager)
@@ -795,26 +777,33 @@ func watchEvents(
 	}
 }
 
+func resolveProxyIdentity(ctx context.Context, hostname func() (string, error), inspect func(context.Context, string) (*discovery.ContainerInfo, error)) (string, map[string]discovery.NetworkInfo) {
+	host, err := hostname()
+	if err != nil {
+		log.Printf("WARNING: Could not identify proxy container: failed to read hostname: %v", err)
+		return "", nil
+	}
+	if host == "" {
+		log.Print("WARNING: Could not identify proxy container: hostname is empty")
+		return "", nil
+	}
+	proxy, err := inspect(ctx, host)
+	if err != nil {
+		log.Printf("WARNING: Could not identify proxy container from hostname %q: %v", host, err)
+		return "", nil
+	}
+	if proxy.ID == "" {
+		log.Printf("WARNING: Docker returned no ID for proxy hostname %q", host)
+		return "", nil
+	}
+	if len(proxy.NetworkSettings) == 0 {
+		log.Printf("WARNING: Proxy container %q has no inspectable networks", proxy.ID)
+	}
+	return proxy.ID, proxy.NetworkSettings
+}
+
 func isProxyContainer(containerInfo *discovery.ContainerInfo, proxyID string) bool {
-	if proxyID == "" || proxyID == "unknown" {
-		proxyID = ""
-	}
-
-	name := strings.TrimPrefix(containerInfo.Name, "/")
-	proxyName := strings.TrimPrefix(proxyID, "/")
-	if containerInfo.ID == proxyID || name == proxyName {
-		return true
-	}
-
-	if name == "chekov" {
-		return true
-	}
-
-	if service, ok := containerInfo.Labels["com.docker.compose.service"]; ok && service == "chekov" {
-		return true
-	}
-
-	return false
+	return proxyID != "" && containerInfo.ID == proxyID
 }
 
 func (tunnelManager *TunnelManager) Logs(w http.ResponseWriter, r *http.Request) {

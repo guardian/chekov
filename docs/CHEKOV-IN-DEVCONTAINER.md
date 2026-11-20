@@ -77,6 +77,10 @@ certificate is only used by clients that connect directly to inner Chekov
 over HTTPS. For HTTPS **upstreams**, inner Chekov instead needs to trust the
 public CA that signed the upstream service's certificate.
 
+Chekov uses Docker's default container hostname to identify itself and skips
+its own container during route discovery. The `--name inner-chekov` flag does
+not change that hostname.
+
 ## 4. Check the alias on inner Chekov
 
 `CHEKOV_ALIASES` tells inner Chekov to serve its UI at `inner-chekov` on
