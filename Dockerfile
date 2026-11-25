@@ -17,7 +17,7 @@ COPY internal ./internal
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o chekov ./cmd
 
 # Stage 2: Runtime
-FROM mcr.microsoft.com/devcontainers/base:ubuntu26.04
+FROM ubuntu:26.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
