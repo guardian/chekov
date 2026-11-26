@@ -305,6 +305,12 @@ func validateHostnameUnderBaseDomain(hostname string, baseDomain string) error {
 		return fmt.Errorf("host must include a label before %q", baseDomain)
 	}
 	labels := strings.Split(labelText, ".")
+	if labels[0] == "*" {
+		if len(labels) == 1 {
+			return fmt.Errorf("wildcard host must include a label before %q", baseDomain)
+		}
+		labels = labels[1:]
+	}
 	for _, label := range labels {
 		if label == "" {
 			return fmt.Errorf("host contains an empty label")

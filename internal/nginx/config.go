@@ -21,6 +21,8 @@ type ConfigGenerator struct {
 	mu           sync.RWMutex
 	routes       []Route
 	routingError string
+	written      string
+	loaded       string
 	// DecorateRoutes is set before serving requests.
 	DecorateRoutes func([]Route) []Route
 }
@@ -59,6 +61,21 @@ func (cg *ConfigGenerator) ApplyRoutes(routes []Route) error {
 	return cg.applyRoutes(routes)
 }
 
+// ApplyRoutesIfChanged is ApplyRoutes, but reports false and leaves the file alone
+// when the rendered config is the one nginx last loaded, so no reload is needed.
+func (cg *ConfigGenerator) ApplyRoutesIfChanged(routes []Route) (bool, error) {
+	cg.mu.Lock()
+	defer cg.mu.Unlock()
+	if cg.DecorateRoutes != nil {
+		routes = cg.DecorateRoutes(routes)
+	}
+	if cg.loaded != "" && cg.renderConfig(routes) == cg.loaded {
+		cg.routes = slices.Clone(routes)
+		return false, nil
+	}
+	return true, cg.applyRoutes(routes)
+}
+
 func (cg *ConfigGenerator) RefreshDecoratedRoutes() (bool, error) {
 	cg.mu.Lock()
 	defer cg.mu.Unlock()
@@ -80,6 +97,7 @@ func (cg *ConfigGenerator) applyRoutes(routes []Route) error {
 		return err
 	}
 	cg.routes = slices.Clone(routes)
+	cg.written = content
 	return nil
 }
 
@@ -383,7 +401,7 @@ func (cg *ConfigGenerator) generateServerBlock(route Route) []string {
 // sanitizeUpstreamName sanitizes hostname for use as upstream name.
 func (cg *ConfigGenerator) sanitizeUpstreamName(hostname string) string {
 	// Replace dots with underscores and hyphens remain
-	return "upstream_" + strings.ReplaceAll(hostname, ".", "_")
+	return "upstream_" + strings.NewReplacer("*", "wildcard", ".", "_").Replace(hostname)
 }
 
 // WriteConfig writes configuration to file atomically.
@@ -448,6 +466,7 @@ func (cg *ConfigGenerator) ReloadNginx() bool {
 
 	cg.mu.Lock()
 	cg.routingError = ""
+	cg.loaded = cg.written
 	cg.mu.Unlock()
 	log.Println("Nginx reloaded successfully")
 	return true

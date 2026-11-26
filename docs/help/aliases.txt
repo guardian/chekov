@@ -1,7 +1,7 @@
 Create another hostname for an existing route. An alias uses the same backend as its selected source; it does not replace the source hostname.
 
 How to use it:
-- Select a currently mapped hostname, then choose a suggestion or enter an alias. Enter either a short name (for example, api-preview) or a full hostname under Chekov's base domain.
+- Select a currently mapped hostname, then choose a suggestion or enter an alias. Enter either a short name (for example, api-preview) or a full hostname under Chekov's base domain. A leading wildcard label (for example, *.s3.api) matches subdomains of that name; exact hostnames take precedence over wildcards.
 - Click Add alias. Chekov validates that the source is mapped and the new hostname is valid and unused, then reloads the routing configuration.
 - Use Delete to remove a manually created alias. Automatic and imported aliases are informational and cannot be deleted here.
 - Suggestions are hints based on container and Dev Container metadata; a suggestion is not active until you add it.

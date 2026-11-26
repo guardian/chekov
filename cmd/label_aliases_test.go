@@ -44,6 +44,40 @@ func TestDockerAliasLabelsUseContainerPorts(t *testing.T) {
 	}
 }
 
+func TestDockerAliasLabelsAcceptLeadingWildcard(t *testing.T) {
+	const domain = "local.dev"
+	app := nginx.Route{Hostname: "app.local.dev", ContainerName: "app", TargetHost: "app", TargetPort: 8080}
+	aliases := aliasesFromLabels("app", map[string]string{
+		"chekov.aliases.8080": "*.s3.app, *, a.*.b, *x.app",
+	}, []labelAliasTarget{{route: app, ports: []int{8080}}}, domain)
+	if len(aliases) != 1 || aliases[0].AliasHostname != "*.s3.app.local.dev" {
+		t.Fatalf("only the leading wildcard alias should be accepted: %+v", aliases)
+	}
+	merged := addHomepageAndAliasRoutes([]nginx.Route{app}, domain, NewAliasManager(),
+		[]ContainerDiagnostic{{LabeledAliases: aliases}})
+	if route := findRouteByHostname(merged, "*.s3.app.local.dev"); route == nil || route.TargetHost != app.TargetHost || route.TargetPort != app.TargetPort {
+		t.Fatalf("wildcard alias route missing: %+v", merged)
+	}
+}
+
+func TestNormalizeAliasHostnameWildcards(t *testing.T) {
+	const domain = "local.dev"
+	for raw, want := range map[string]string{
+		"*.s3.app":           "*.s3.app.local.dev",
+		"*.s3.app.local.dev": "*.s3.app.local.dev",
+		"*.app":              "*.app.local.dev",
+	} {
+		if got, err := normalizeAliasHostname(raw, domain); err != nil || got != want {
+			t.Errorf("normalizeAliasHostname(%q) = %q, %v; want %q", raw, got, err, want)
+		}
+	}
+	for _, raw := range []string{"*", "*.local.dev", "a.*.b", "*.*.app", "*x.app", "x*.app"} {
+		if got, err := normalizeAliasHostname(raw, domain); err == nil {
+			t.Errorf("normalizeAliasHostname(%q) = %q; want error", raw, got)
+		}
+	}
+}
+
 func TestDockerAliasLabelsForChekovAndConflicts(t *testing.T) {
 	const domain = "local.dev"
 	ui := homepageRoute(domain)
