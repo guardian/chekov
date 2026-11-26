@@ -383,7 +383,7 @@ func (cg *ConfigGenerator) generateServerBlock(route Route) []string {
 // sanitizeUpstreamName sanitizes hostname for use as upstream name.
 func (cg *ConfigGenerator) sanitizeUpstreamName(hostname string) string {
 	// Replace dots with underscores and hyphens remain
-	return "upstream_" + strings.ReplaceAll(hostname, ".", "_")
+	return "upstream_" + strings.NewReplacer("*", "wildcard", ".", "_").Replace(hostname)
 }
 
 // WriteConfig writes configuration to file atomically.

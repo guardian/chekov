@@ -177,6 +177,12 @@ labels:
 
 The ports must already have routes. See [Docker alias labels](docs/CONFIGURATION.md#docker-alias-labels).
 
+An alias may start with a `*` label, such as `*.s3.localstack`, to route every
+subdomain of that name (for example S3 virtual-hosted bucket hostnames). The
+wildcard must be the leftmost label and cannot sit directly on the base domain.
+Exact hostnames take precedence, and Chekov mints a matching wildcard
+certificate.
+
 ## Access from inside the container
 
 If a Dev Container needs to call the host by the generated route name, add Docker host aliases in `runArgs`:

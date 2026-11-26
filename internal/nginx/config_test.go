@@ -27,6 +27,20 @@ func TestProxyPreservesAuthorityOnlyForChekovBackend(t *testing.T) {
 	}
 }
 
+func TestWildcardRouteConfig(t *testing.T) {
+	generator := NewConfigGenerator("", "/default.crt", "/default.key")
+	config := strings.Join(generator.generateServerBlock(Route{Hostname: "*.s3.app.local.dev", TargetHost: "app", TargetPort: 8080}), "\n")
+	for _, want := range []string{
+		"upstream upstream_wildcard_s3_app_local_dev {",
+		"proxy_pass http://upstream_wildcard_s3_app_local_dev;",
+		"server_name *.s3.app.local.dev;",
+	} {
+		if !strings.Contains(config, want) {
+			t.Errorf("wildcard config missing %q:\n%s", want, config)
+		}
+	}
+}
+
 func TestRoutingErrorLifecycle(t *testing.T) {
 	dir := t.TempDir()
 	script := "#!/bin/sh\nif [ \"$1\" = \"$NGINX_TEST_FAILURE\" ]; then\n echo 'simulated nginx error' >&2\n exit 1\nfi\n"

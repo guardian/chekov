@@ -94,6 +94,7 @@ func TestHostnameWildcardScope(t *testing.T) {
 		{"xxx.local.dev-gutools.co.uk", baseDomain},
 		{"yyy.zzz.local.dev-gutools.co.uk", "zzz." + baseDomain},
 		{"aaa.yyy.zzz.local.dev-gutools.co.uk", "yyy.zzz." + baseDomain},
+		{"*.yyy.zzz.local.dev-gutools.co.uk", "yyy.zzz." + baseDomain},
 		{"outside.example.com", ""},
 	} {
 		t.Run(test.hostname, func(t *testing.T) {
