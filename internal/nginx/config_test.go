@@ -72,3 +72,33 @@ func TestRoutingWriteFailure(t *testing.T) {
 		t.Fatal("write failure not exposed")
 	}
 }
+
+func TestApplyRoutesIfChangedSkipsLoadedConfig(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "nginx"), []byte("#!/bin/sh\nexit 0\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	generator := NewConfigGenerator(filepath.Join(dir, "generated.conf"), "", "")
+	first := []Route{{Hostname: "app.local.dev", TargetHost: "app", TargetPort: 8080}}
+	second := []Route{{Hostname: "app.local.dev", TargetHost: "app", TargetPort: 9090}}
+
+	if changed, err := generator.ApplyRoutesIfChanged(first); err != nil || !changed {
+		t.Fatalf("first apply: changed=%t err=%v", changed, err)
+	}
+	if changed, _ := generator.ApplyRoutesIfChanged(first); !changed {
+		t.Fatal("config not yet loaded by nginx must still be reported as changed")
+	}
+	if !generator.ReloadNginx() {
+		t.Fatal("reload failed")
+	}
+	if changed, err := generator.ApplyRoutesIfChanged(first); err != nil || changed {
+		t.Fatalf("unchanged apply: changed=%t err=%v", changed, err)
+	}
+	if changed, err := generator.ApplyRoutesIfChanged(second); err != nil || !changed {
+		t.Fatalf("changed apply: changed=%t err=%v", changed, err)
+	}
+	if routes := generator.CurrentRoutes(); routes[0].TargetPort != 9090 {
+		t.Fatalf("routes not updated: %+v", routes)
+	}
+}

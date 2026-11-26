@@ -166,9 +166,13 @@ func reconcileRoutes(
 
 	homepageState.Set(homepageRows)
 
-	// Generate and update config
-	if err := configGen.ApplyRoutes(routes); err != nil {
+	// Generate and update config; reloading drops idle keep-alive connections, so skip no-ops.
+	changed, err := configGen.ApplyRoutesIfChanged(routes)
+	if err != nil {
 		log.Printf("ERROR: Failed to write config: %v\n", err)
+		return
+	}
+	if !changed {
 		return
 	}
 

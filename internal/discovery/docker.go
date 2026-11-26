@@ -209,7 +209,11 @@ func (dc *DockerClient) InspectContainer(ctx context.Context, containerID string
 // Yields container start, stop, die, destroy, rename events
 // and network connect, disconnect events.
 func (dc *DockerClient) WatchEvents(ctx context.Context) (<-chan events.Message, <-chan error) {
-	result := dc.client.Events(ctx, client.EventsListOptions{})
+	// Unfiltered, healthcheck exec/health_status events would trigger a reconcile every interval.
+	filters := make(client.Filters).
+		Add("type", "container", "network").
+		Add("event", "start", "stop", "die", "destroy", "rename", "connect", "disconnect")
+	result := dc.client.Events(ctx, client.EventsListOptions{Filters: filters})
 	return result.Messages, result.Err
 }
 

@@ -43,6 +43,12 @@ func TestDockerClientOperations(t *testing.T) {
 		case "GET /v1.40/containers/test-container/json":
 			fmt.Fprint(w, inspect)
 		case "GET /v1.40/events":
+			var filters map[string]map[string]bool
+			if err := json.Unmarshal([]byte(r.URL.Query().Get("filters")), &filters); err != nil {
+				t.Errorf("invalid events filters: %v", err)
+			} else if !filters["type"]["container"] || !filters["event"]["start"] || filters["event"]["exec_start"] || filters["event"]["health_status"] {
+				t.Errorf("unexpected events filters: %v", filters)
+			}
 			fmt.Fprintln(w, `{"Type":"container","Action":"start","Actor":{"ID":"test-container"}}`)
 		case "POST /v1.40/networks/test-network/connect", "POST /v1.40/networks/test-network/disconnect":
 			var body struct {
